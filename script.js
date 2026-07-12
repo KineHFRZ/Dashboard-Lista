@@ -1,11 +1,22 @@
-// script.js
+// script.js - VERSIÓN CORREGIDA CON DESTRUCCIÓN DE GRÁFICOS
 let allData = [];
 let filteredData = [];
+let chartEvolucion = null;
+let chartGravedad = null;
+let chartRendimiento = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Verificar que los datos existen
+    if (typeof data === 'undefined') {
+        console.error('❌ Error: data.js no está cargado correctamente');
+        return;
+    }
+    
     allData = data;
     filteredData = [...allData];
     populateModuloFilter();
+    
+    // Event listeners
     document.getElementById('mesFilter').addEventListener('change', updateDashboard);
     document.getElementById('moduloFilter').addEventListener('change', updateDashboard);
     document.getElementById('diaFilter').addEventListener('input', function() {
@@ -13,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
         updateDashboard();
     });
     document.getElementById('resetFilters').addEventListener('click', resetFilters);
+    
+    // Inicializar dashboard
     updateDashboard();
 });
 
@@ -28,10 +41,12 @@ function populateModuloFilter() {
 }
 
 function updateDashboard() {
+    // Obtener filtros
     const mes = document.getElementById('mesFilter').value;
     const modulo = document.getElementById('moduloFilter').value;
     const diaMax = parseInt(document.getElementById('diaFilter').value);
     
+    // Aplicar filtros
     filteredData = allData.filter(d => {
         let match = true;
         if (mes !== 'todos') match = match && d.mes === mes;
@@ -40,8 +55,15 @@ function updateDashboard() {
         return match;
     });
     
+    console.log('📊 Datos filtrados:', filteredData.length, 'registros');
+    
+    // Actualizar KPIs
     updateKPIs();
+    
+    // Actualizar gráficos (destruyendo los anteriores)
     updateCharts();
+    
+    // Actualizar tabla
     updateTable();
 }
 
@@ -51,6 +73,7 @@ function updateKPIs() {
     const rendimientoPromedio = filteredData.length > 0 ? 
         Math.round(filteredData.reduce((sum, d) => sum + d.rendimiento, 0) / filteredData.length) : 0;
     
+    // Calcular mejor módulo
     const modulosRendimiento = {};
     filteredData.forEach(d => {
         if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
@@ -60,8 +83,9 @@ function updateKPIs() {
     let mejorModulo = '-';
     let mejorPromedio = -1;
     for (const [modulo, rendimientos] of Object.entries(modulosRendimiento)) {
+        if (modulo === 'Gine') continue;
         const promedioMod = rendimientos.reduce((a, b) => a + b, 0) / rendimientos.length;
-        if (promedioMod > mejorPromedio && modulo !== 'Gine') {
+        if (promedioMod > mejorPromedio) {
             mejorPromedio = promedioMod;
             mejorModulo = modulo;
         }
@@ -70,17 +94,32 @@ function updateKPIs() {
     document.getElementById('kpiTotal').textContent = total;
     document.getElementById('kpiPromedio').textContent = promedio;
     document.getElementById('kpiRendimiento').textContent = rendimientoPromedio + '%';
-    document.getElementById('kpiMejorModulo').textContent = mejorModulo + ' (' + Math.round(mejorPromedio) + '%)';
+    document.getElementById('kpiMejorModulo').textContent = mejorModulo + (mejorPromedio > 0 ? ' (' + Math.round(mejorPromedio) + '%)' : '');
 }
 
 function updateCharts() {
-    // Gráfico 1: Evolución
-    const dias = [...new Set(filteredData.map(d => d.dia))].sort();
+    // === DESTRUIR GRÁFICOS ANTERIORES ===
+    if (chartEvolucion) {
+        chartEvolucion.destroy();
+        chartEvolucion = null;
+    }
+    if (chartGravedad) {
+        chartGravedad.destroy();
+        chartGravedad = null;
+    }
+    if (chartRendimiento) {
+        chartRendimiento.destroy();
+        chartRendimiento = null;
+    }
+    
+    // === GRÁFICO 1: Evolución de Atenciones ===
+    const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
     const totalesPorDia = dias.map(dia => 
         filteredData.filter(d => d.dia === dia).reduce((sum, d) => sum + d.total, 0)
     );
     
-    new Chart(document.getElementById('chartEvolucion'), {
+    const ctx1 = document.getElementById('chartEvolucion').getContext('2d');
+    chartEvolucion = new Chart(ctx1, {
         type: 'line',
         data: {
             labels: dias,
@@ -91,18 +130,36 @@ function updateCharts() {
                 backgroundColor: 'rgba(102, 126, 234, 0.1)',
                 borderWidth: 3,
                 tension: 0.3,
-                fill: true
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#667eea'
             }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                },
+                x: {
+                    title: { display: true, text: 'Día del Mes' }
+                }
+            }
+        }
     });
     
-    // Gráfico 2: Gravedad
+    // === GRÁFICO 2: Distribución por Gravedad ===
     const leveTotal = filteredData.reduce((sum, d) => sum + d.leve, 0);
     const modTotal = filteredData.reduce((sum, d) => sum + d.mod, 0);
     const sevTotal = filteredData.reduce((sum, d) => sum + d.sev, 0);
     
-    new Chart(document.getElementById('chartGravedad'), {
+    const ctx2 = document.getElementById('chartGravedad').getContext('2d');
+    chartGravedad = new Chart(ctx2, {
         type: 'doughnut',
         data: {
             labels: ['Leve', 'Moderado', 'Severo'],
@@ -113,37 +170,75 @@ function updateCharts() {
                 borderColor: 'white'
             }]
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { 
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                }
+            },
+            cutout: '60%'
+        }
     });
     
-    // Gráfico 3: Rendimiento por módulo
+    // === GRÁFICO 3: Rendimiento por Módulo ===
     const modulosRendimiento = {};
     filteredData.forEach(d => {
+        if (d.modulo === 'Gine') return;
         if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
         modulosRendimiento[d.modulo].push(d.rendimiento);
     });
     
-    const modulos = Object.keys(modulosRendimiento).filter(m => m !== 'Gine');
+    const modulos = Object.keys(modulosRendimiento).sort();
     const rendimientos = modulos.map(modulo => {
         const rends = modulosRendimiento[modulo];
         return Math.round(rends.reduce((a, b) => a + b, 0) / rends.length);
     });
     
-    new Chart(document.getElementById('chartRendimiento'), {
+    const ctx3 = document.getElementById('chartRendimiento').getContext('2d');
+    chartRendimiento = new Chart(ctx3, {
         type: 'bar',
         data: {
             labels: modulos,
             datasets: [{
                 label: 'Rendimiento Promedio (%)',
                 data: rendimientos,
-                backgroundColor: rendimientos.map(r => r >= 80 ? '#48bb78' : r >= 60 ? '#ed8936' : '#fc8181'),
-                borderRadius: 8
+                backgroundColor: rendimientos.map(r => 
+                    r >= 80 ? '#48bb78' : 
+                    r >= 60 ? '#ed8936' : 
+                    '#fc8181'
+                ),
+                borderRadius: 8,
+                borderSkipped: false
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%'; } } } }
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) { return value + '%'; }
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
         }
     });
 }
@@ -151,9 +246,30 @@ function updateCharts() {
 function updateTable() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
-    filteredData.forEach(d => {
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">📭 No hay datos para los filtros seleccionados</td></tr>';
+        return;
+    }
+    
+    // Ordenar por mes y día
+    const sortedData = [...filteredData].sort((a, b) => {
+        if (a.mes !== b.mes) return a.mes.localeCompare(b.mes);
+        return a.dia - b.dia;
+    });
+    
+    sortedData.forEach(d => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${d.dia}</td><td>${d.mes}</td><td>${d.modulo}</td><td>${d.total}</td><td>${d.leve}</td><td>${d.mod}</td><td>${d.sev}</td><td>${d.rendimiento}%</td>`;
+        tr.innerHTML = `
+            <td>${d.dia}</td>
+            <td><span class="badge ${d.mes.toLowerCase()}">${d.mes}</span></td>
+            <td>${d.modulo}</td>
+            <td><strong>${d.total}</strong></td>
+            <td>${d.leve}</td>
+            <td>${d.mod}</td>
+            <td>${d.sev}</td>
+            <td>${d.rendimiento}%</td>
+        `;
         tbody.appendChild(tr);
     });
 }
