@@ -1,6 +1,8 @@
-// script.js - VERSIÓN CORREGIDA CON DESTRUCCIÓN DE GRÁFICOS
+// script.js - VERSIÓN ESTABLE CON ACTUALIZACIÓN DINÁMICA
 let allData = [];
 let filteredData = [];
+
+// Variables para los gráficos
 let chartEvolucion = null;
 let chartGravedad = null;
 let chartRendimiento = null;
@@ -8,7 +10,8 @@ let chartRendimiento = null;
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar que los datos existen
     if (typeof data === 'undefined') {
-        console.error('❌ Error: data.js no está cargado correctamente');
+        console.error('❌ Error: data.js no está cargado');
+        alert('Error: No se encontraron datos. Verifica que data.js esté cargado.');
         return;
     }
     
@@ -33,10 +36,12 @@ function populateModuloFilter() {
     const modulos = [...new Set(allData.map(d => d.modulo))].sort();
     const select = document.getElementById('moduloFilter');
     modulos.forEach(modulo => {
-        const option = document.createElement('option');
-        option.value = modulo;
-        option.textContent = modulo;
-        select.appendChild(option);
+        if (modulo !== 'Gine') { // Excluir Gine
+            const option = document.createElement('option');
+            option.value = modulo;
+            option.textContent = modulo;
+            select.appendChild(option);
+        }
     });
 }
 
@@ -55,15 +60,9 @@ function updateDashboard() {
         return match;
     });
     
-    console.log('📊 Datos filtrados:', filteredData.length, 'registros');
-    
-    // Actualizar KPIs
+    // Actualizar todo
     updateKPIs();
-    
-    // Actualizar gráficos (destruyendo los anteriores)
     updateCharts();
-    
-    // Actualizar tabla
     updateTable();
 }
 
@@ -76,6 +75,7 @@ function updateKPIs() {
     // Calcular mejor módulo
     const modulosRendimiento = {};
     filteredData.forEach(d => {
+        if (d.modulo === 'Gine') return;
         if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
         modulosRendimiento[d.modulo].push(d.rendimiento);
     });
@@ -83,7 +83,6 @@ function updateKPIs() {
     let mejorModulo = '-';
     let mejorPromedio = -1;
     for (const [modulo, rendimientos] of Object.entries(modulosRendimiento)) {
-        if (modulo === 'Gine') continue;
         const promedioMod = rendimientos.reduce((a, b) => a + b, 0) / rendimientos.length;
         if (promedioMod > mejorPromedio) {
             mejorPromedio = promedioMod;
@@ -112,7 +111,9 @@ function updateCharts() {
         chartRendimiento = null;
     }
     
-    // === GRÁFICO 1: Evolución de Atenciones ===
+    // ============================================
+    // GRÁFICO 1: Evolución de Atenciones por Día
+    // ============================================
     const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
     const totalesPorDia = dias.map(dia => 
         filteredData.filter(d => d.dia === dia).reduce((sum, d) => sum + d.total, 0)
@@ -127,33 +128,59 @@ function updateCharts() {
                 label: 'Total Atenciones',
                 data: totalesPorDia,
                 borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                backgroundColor: 'rgba(102, 126, 234, 0.15)',
                 borderWidth: 3,
-                tension: 0.3,
+                tension: 0.4,
                 fill: true,
                 pointRadius: 4,
-                pointBackgroundColor: '#667eea'
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
-                legend: { display: false }
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                }
             },
             scales: {
                 y: { 
                     beginAtZero: true,
-                    ticks: { stepSize: 1 }
+                    ticks: { 
+                        stepSize: 1,
+                        font: { size: 11 }
+                    }
                 },
                 x: {
-                    title: { display: true, text: 'Día del Mes' }
+                    title: { 
+                        display: true, 
+                        text: 'Día del Mes',
+                        font: { size: 12, weight: 'bold' }
+                    },
+                    ticks: { 
+                        stepSize: 2,
+                        font: { size: 10 }
+                    }
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             }
         }
     });
     
-    // === GRÁFICO 2: Distribución por Gravedad ===
+    // ============================================
+    // GRÁFICO 2: Distribución por Gravedad
+    // ============================================
     const leveTotal = filteredData.reduce((sum, d) => sum + d.leve, 0);
     const modTotal = filteredData.reduce((sum, d) => sum + d.mod, 0);
     const sevTotal = filteredData.reduce((sum, d) => sum + d.sev, 0);
@@ -162,12 +189,13 @@ function updateCharts() {
     chartGravedad = new Chart(ctx2, {
         type: 'doughnut',
         data: {
-            labels: ['Leve', 'Moderado', 'Severo'],
+            labels: ['🟢 Leve', '🟡 Moderado', '🔴 Severo'],
             datasets: [{
                 data: [leveTotal, modTotal, sevTotal],
                 backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
                 borderWidth: 3,
-                borderColor: 'white'
+                borderColor: 'white',
+                hoverOffset: 10
             }]
         },
         options: {
@@ -179,15 +207,27 @@ function updateCharts() {
                     labels: {
                         padding: 20,
                         usePointStyle: true,
-                        pointStyle: 'circle'
+                        pointStyle: 'circle',
+                        font: { size: 13 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
                     }
                 }
             },
-            cutout: '60%'
+            cutout: '65%'
         }
     });
     
-    // === GRÁFICO 3: Rendimiento por Módulo ===
+    // ============================================
+    // GRÁFICO 3: Rendimiento por Módulo
+    // ============================================
     const modulosRendimiento = {};
     filteredData.forEach(d => {
         if (d.modulo === 'Gine') return;
@@ -201,41 +241,66 @@ function updateCharts() {
         return Math.round(rends.reduce((a, b) => a + b, 0) / rends.length);
     });
     
+    // Ordenar de mayor a menor rendimiento
+    const combined = modulos.map((modulo, index) => ({
+        modulo: modulo,
+        rendimiento: rendimientos[index]
+    }));
+    combined.sort((a, b) => b.rendimiento - a.rendimiento);
+    
+    const sortedModulos = combined.map(item => item.modulo);
+    const sortedRendimientos = combined.map(item => item.rendimiento);
+    
     const ctx3 = document.getElementById('chartRendimiento').getContext('2d');
     chartRendimiento = new Chart(ctx3, {
         type: 'bar',
         data: {
-            labels: modulos,
+            labels: sortedModulos,
             datasets: [{
                 label: 'Rendimiento Promedio (%)',
-                data: rendimientos,
-                backgroundColor: rendimientos.map(r => 
+                data: sortedRendimientos,
+                backgroundColor: sortedRendimientos.map(r => 
                     r >= 80 ? '#48bb78' : 
                     r >= 60 ? '#ed8936' : 
                     '#fc8181'
                 ),
                 borderRadius: 8,
-                borderSkipped: false
+                borderSkipped: false,
+                barPercentage: 0.7
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
-                legend: { display: false }
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Rendimiento: ' + context.parsed.y + '%';
+                        }
+                    }
+                }
             },
             scales: {
                 y: {
                     beginAtZero: true,
                     max: 100,
                     ticks: {
-                        callback: function(value) { return value + '%'; }
+                        callback: function(value) { return value + '%'; },
+                        font: { size: 11 }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Porcentaje (%)',
+                        font: { size: 12, weight: 'bold' }
                     }
                 },
                 x: {
                     ticks: {
                         maxRotation: 45,
-                        minRotation: 45
+                        minRotation: 30,
+                        font: { size: 10 }
                     }
                 }
             }
@@ -248,7 +313,7 @@ function updateTable() {
     tbody.innerHTML = '';
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">📭 No hay datos para los filtros seleccionados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#a0aec0;font-size:1.1em;">📭 No hay datos para los filtros seleccionados</td></tr>';
         return;
     }
     
@@ -261,14 +326,14 @@ function updateTable() {
     sortedData.forEach(d => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${d.dia}</td>
-            <td><span class="badge ${d.mes.toLowerCase()}">${d.mes}</span></td>
+            <td><strong>${d.dia}</strong></td>
+            <td><span class="badge badge-${d.mes.toLowerCase()}">${d.mes}</span></td>
             <td>${d.modulo}</td>
             <td><strong>${d.total}</strong></td>
             <td>${d.leve}</td>
             <td>${d.mod}</td>
             <td>${d.sev}</td>
-            <td>${d.rendimiento}%</td>
+            <td><span style="color: ${d.rendimiento >= 80 ? '#48bb78' : d.rendimiento >= 60 ? '#ed8936' : '#fc8181'}; font-weight: 600;">${d.rendimiento}%</span></td>
         `;
         tbody.appendChild(tr);
     });
