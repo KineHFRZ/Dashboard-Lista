@@ -1,22 +1,32 @@
-<!-- Gráficos -->
-<section class="charts-grid">
-    <div class="chart-card">
-        <h2>📈 Evolución de Atenciones por Día</h2>
-        <canvas id="chartEvolucion"></canvas>
+<!-- Filtros con Selección Múltiple -->
+<section class="filters">
+    <div class="filter-group filter-multiple">
+        <label>📋 Módulos:</label>
+        <div class="checkbox-group" id="moduloCheckboxes">
+            <!-- Los checkboxes se generan dinámicamente -->
+        </div>
+        <div class="checkbox-actions">
+            <button id="selectAllModulos" class="btn-small">Seleccionar todos</button>
+            <button id="deselectAllModulos" class="btn-small">Deseleccionar todos</button>
+        </div>
     </div>
-    <div class="chart-card">
-        <h2>📊 Distribución por Gravedad</h2>
-        <canvas id="chartGravedad"></canvas>
+    
+    <div class="filter-group filter-multiple">
+        <label>📅 Meses:</label>
+        <div class="checkbox-group" id="mesCheckboxes">
+            <!-- Los checkboxes se generan dinámicamente -->
+        </div>
+        <div class="checkbox-actions">
+            <button id="selectAllMeses" class="btn-small">Seleccionar todos</button>
+            <button id="deselectAllMeses" class="btn-small">Deseleccionar todos</button>
+        </div>
     </div>
-    <div class="chart-card full-width">
-        <h2>🎯 Rendimiento Promedio por Módulo</h2>
-        <canvas id="chartRendimiento"></canvas>
+    
+    <div class="filter-group">
+        <label for="diaFilter">📆 Día máximo:</label>
+        <input type="range" id="diaFilter" min="1" max="31" value="31">
+        <span id="diaValue">31</span>
     </div>
-    <div class="chart-card full-width" style="margin-top: 30px;">
-        <h2>📊 Rendimiento por Módulo y Mes</h2>
-        <p style="color: #718096; font-size: 0.9em; margin-bottom: 15px;">
-            💡 Selecciona un módulo para ver su evolución mensual, o mantén "Todos" para ver la comparativa
-        </p>
-        <canvas id="chartRendimientoMensual"></canvas>
-    </div>
+    
+    <button id="resetFilters">🔄 Resetear Filtros</button>
 </section>
