@@ -1,4 +1,4 @@
-// script.js - VERSIÓN OPTIMIZADA CON GRÁFICOS DESCRIPTIVOS
+// script.js - VERSIÓN CON SELECCIÓN MÚLTIPLE Y GRÁFICOS MEJORADOS
 let allData = [];
 let filteredData = [];
 
@@ -6,7 +6,6 @@ let filteredData = [];
 let chartEvolucion = null;
 let chartGravedad = null;
 let chartRendimiento = null;
-let chartRendimientoMensual = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar que los datos existen
@@ -18,16 +17,40 @@ document.addEventListener('DOMContentLoaded', function() {
     
     allData = data;
     filteredData = [...allData];
-    populateModuloFilter();
     
-    // Event listeners
-    document.getElementById('mesFilter').addEventListener('change', updateDashboard);
-    document.getElementById('moduloFilter').addEventListener('change', updateDashboard);
+    // Poblar filtros
+    populateModuloFilter();
+    populateMesFilter();
+    
+    // Event listeners para checkboxes
+    document.querySelectorAll('.modulo-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateDashboard);
+    });
+    document.querySelectorAll('.mes-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateDashboard);
+    });
+    
     document.getElementById('diaFilter').addEventListener('input', function() {
         document.getElementById('diaValue').textContent = this.value;
         updateDashboard();
     });
     document.getElementById('resetFilters').addEventListener('click', resetFilters);
+    document.getElementById('selectAllModulos').addEventListener('click', function() {
+        document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.checked = true);
+        updateDashboard();
+    });
+    document.getElementById('deselectAllModulos').addEventListener('click', function() {
+        document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.checked = false);
+        updateDashboard();
+    });
+    document.getElementById('selectAllMeses').addEventListener('click', function() {
+        document.querySelectorAll('.mes-checkbox').forEach(cb => cb.checked = true);
+        updateDashboard();
+    });
+    document.getElementById('deselectAllMeses').addEventListener('click', function() {
+        document.querySelectorAll('.mes-checkbox').forEach(cb => cb.checked = false);
+        updateDashboard();
+    });
     
     // Inicializar dashboard
     updateDashboard();
@@ -35,28 +58,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function populateModuloFilter() {
     const modulos = [...new Set(allData.map(d => d.modulo))].sort();
-    const select = document.getElementById('moduloFilter');
+    const container = document.getElementById('moduloCheckboxes');
+    container.innerHTML = '';
+    
     modulos.forEach(modulo => {
-        if (modulo !== 'Gine') {
-            const option = document.createElement('option');
-            option.value = modulo;
-            option.textContent = modulo;
-            select.appendChild(option);
-        }
+        if (modulo === 'Gine') return;
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.innerHTML = `
+            <input type="checkbox" class="modulo-checkbox" value="${modulo}" checked>
+            <span>${modulo}</span>
+        `;
+        container.appendChild(label);
     });
+}
+
+function populateMesFilter() {
+    const meses = ['MAYO', 'JUNIO', 'JULIO'];
+    const container = document.getElementById('mesCheckboxes');
+    container.innerHTML = '';
+    
+    meses.forEach(mes => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.innerHTML = `
+            <input type="checkbox" class="mes-checkbox" value="${mes}" checked>
+            <span>${mes}</span>
+        `;
+        container.appendChild(label);
+    });
+}
+
+function getSelectedModulos() {
+    const checkboxes = document.querySelectorAll('.modulo-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function getSelectedMeses() {
+    const checkboxes = document.querySelectorAll('.mes-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
 }
 
 function updateDashboard() {
     // Obtener filtros
-    const mes = document.getElementById('mesFilter').value;
-    const modulo = document.getElementById('moduloFilter').value;
+    const selectedModulos = getSelectedModulos();
+    const selectedMeses = getSelectedMeses();
     const diaMax = parseInt(document.getElementById('diaFilter').value);
     
     // Aplicar filtros
     filteredData = allData.filter(d => {
         let match = true;
-        if (mes !== 'todos') match = match && d.mes === mes;
-        if (modulo !== 'todos') match = match && d.modulo === modulo;
+        if (selectedModulos.length > 0) match = match && selectedModulos.includes(d.modulo);
+        if (selectedMeses.length > 0) match = match && selectedMeses.includes(d.mes);
         if (diaMax < 31) match = match && d.dia <= diaMax;
         return match;
     });
@@ -111,13 +164,9 @@ function updateCharts() {
         chartRendimiento.destroy();
         chartRendimiento = null;
     }
-    if (chartRendimientoMensual) {
-        chartRendimientoMensual.destroy();
-        chartRendimientoMensual = null;
-    }
     
     // ============================================
-    // GRÁFICO 1: Evolución de Atenciones por Día (CORREGIDO)
+    // GRÁFICO 1: Evolución de Atenciones por Día
     // ============================================
     const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
     const totalesPorDia = dias.map(dia => 
@@ -246,258 +295,228 @@ function updateCharts() {
     });
     
     // ============================================
-    // GRÁFICO 3: Rendimiento por Módulo (PROMEDIO GENERAL)
+    // GRÁFICO 3: Rendimiento por Módulo (DESGLOSADO POR MES + PROMEDIO)
     // ============================================
-    const moduloSeleccionado = document.getElementById('moduloFilter').value;
-    const mesSeleccionado = document.getElementById('mesFilter').value;
+    const selectedModulos = getSelectedModulos();
+    const selectedMeses = getSelectedMeses();
+    const mesesDisponibles = ['MAYO', 'JUNIO', 'JULIO'];
     
-    const modulosRendimiento = {};
-    filteredData.forEach(d => {
-        if (d.modulo === 'Gine') return;
-        if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
-        modulosRendimiento[d.modulo].push(d.rendimiento);
-    });
-    
-    const modulos = Object.keys(modulosRendimiento).sort();
-    const rendimientos = modulos.map(modulo => {
-        const rends = modulosRendimiento[modulo];
-        return Math.round(rends.reduce((a, b) => a + b, 0) / rends.length);
-    });
-    
-    // Ordenar de mayor a menor rendimiento
-    const combined = modulos.map((modulo, index) => ({
-        modulo: modulo,
-        rendimiento: rendimientos[index]
-    }));
-    combined.sort((a, b) => b.rendimiento - a.rendimiento);
-    
-    const sortedModulos = combined.map(item => item.modulo);
-    const sortedRendimientos = combined.map(item => item.rendimiento);
-    
-    const ctx3 = document.getElementById('chartRendimiento').getContext('2d');
-    chartRendimiento = new Chart(ctx3, {
-        type: 'bar',
-        data: {
-            labels: sortedModulos,
-            datasets: [{
-                label: 'Rendimiento Promedio (%)',
-                data: sortedRendimientos,
-                backgroundColor: sortedRendimientos.map(r => 
-                    r >= 80 ? '#48bb78' : 
-                    r >= 60 ? '#ed8936' : 
-                    '#fc8181'
-                ),
-                borderRadius: 8,
-                borderSkipped: false,
-                barPercentage: 0.7
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Rendimiento: ' + context.parsed.y + '%';
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) { return value + '%'; },
-                        font: { size: 11 }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Porcentaje (%)',
-                        font: { size: 12, weight: 'bold' }
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 30,
-                        font: { size: 10 }
-                    }
-                }
-            }
-        }
-    });
-    
-    // ============================================
-    // GRÁFICO 4: Rendimiento Mensual por Módulo (NUEVO)
-    // ============================================
-    const ctx4 = document.getElementById('chartRendimientoMensual').getContext('2d');
-    
-    let datosMensuales = {};
-    let mesesDisponibles = ['MAYO', 'JUNIO', 'JULIO'];
-    
-    // Si hay un módulo seleccionado, mostrar su rendimiento por mes
-    if (moduloSeleccionado !== 'todos') {
-        // Filtrar datos por módulo
-        const dataModulo = allData.filter(d => d.modulo === moduloSeleccionado && d.modulo !== 'Gine');
-        
-        // Agrupar por mes y calcular promedio
-        mesesDisponibles.forEach(mes => {
-            const dataMes = dataModulo.filter(d => d.mes === mes);
-            if (dataMes.length > 0) {
-                const promedio = dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length;
-                datosMensuales[mes] = Math.round(promedio);
-            } else {
-                datosMensuales[mes] = 0;
-            }
-        });
-        
-        // Si hay filtro de mes, solo mostrar ese mes
-        if (mesSeleccionado !== 'todos') {
-            const temp = {};
-            temp[mesSeleccionado] = datosMensuales[mesSeleccionado] || 0;
-            datosMensuales = temp;
-        }
-        
-        chartRendimientoMensual = new Chart(ctx4, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(datosMensuales),
-                datasets: [{
-                    label: 'Rendimiento Mensual - ' + moduloSeleccionado,
-                    data: Object.values(datosMensuales),
-                    backgroundColor: ['#f6ad55', '#68d391', '#fc8181'],
-                    borderRadius: 8,
-                    borderSkipped: false,
-                    barPercentage: 0.5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { 
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            font: { size: 12, weight: 'bold' }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return 'Rendimiento: ' + context.parsed.y + '%';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) { return value + '%'; },
-                            font: { size: 11 }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Rendimiento (%)',
-                            font: { size: 12, weight: 'bold' }
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Mes',
-                            font: { size: 12, weight: 'bold' }
-                        }
-                    }
-                }
-            }
-        });
-    } else {
-        // Si no hay módulo seleccionado, mostrar comparativa por módulo y mes
-        const modulosUnicos = [...new Set(allData.filter(d => d.modulo !== 'Gine').map(d => d.modulo))].sort();
-        
-        // Colores por mes
+    // Si hay módulos seleccionados
+    if (selectedModulos.length > 0) {
+        // Colores para cada mes
         const coloresMeses = {
             'MAYO': 'rgba(246, 173, 85, 0.8)',
             'JUNIO': 'rgba(104, 211, 145, 0.8)',
             'JULIO': 'rgba(252, 129, 129, 0.8)'
         };
         
-        const datasets = mesesDisponibles.map(mes => {
-            const dataMes = modulosUnicos.map(modulo => {
-                const dataModulo = allData.filter(d => d.modulo === modulo && d.mes === mes);
-                if (dataModulo.length > 0) {
-                    return Math.round(dataModulo.reduce((sum, d) => sum + d.rendimiento, 0) / dataModulo.length);
+        // Si solo hay un módulo seleccionado, mostrar desglose mensual + promedio
+        if (selectedModulos.length === 1) {
+            const modulo = selectedModulos[0];
+            const datosModulo = filteredData.filter(d => d.modulo === modulo);
+            
+            // Calcular promedio por mes
+            const promediosMensuales = {};
+            mesesDisponibles.forEach(mes => {
+                const dataMes = datosModulo.filter(d => d.mes === mes);
+                if (dataMes.length > 0) {
+                    promediosMensuales[mes] = Math.round(dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length);
+                } else {
+                    promediosMensuales[mes] = 0;
                 }
-                return 0;
             });
             
-            return {
-                label: mes,
-                data: dataMes,
-                backgroundColor: coloresMeses[mes] || 'rgba(200, 200, 200, 0.8)',
-                borderRadius: 4,
-                borderSkipped: false,
-                barPercentage: 0.6
-            };
-        });
-        
-        chartRendimientoMensual = new Chart(ctx4, {
-            type: 'bar',
-            data: {
-                labels: modulosUnicos,
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { 
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            font: { size: 12, weight: 'bold' },
-                            usePointStyle: true,
-                            padding: 15
+            // Calcular promedio total
+            const totalRendimiento = datosModulo.reduce((sum, d) => sum + d.rendimiento, 0);
+            const promedioTotal = datosModulo.length > 0 ? Math.round(totalRendimiento / datosModulo.length) : 0;
+            
+            // Filtrar meses si hay selección
+            let labels = mesesDisponibles;
+            let data = mesesDisponibles.map(mes => promediosMensuales[mes]);
+            
+            if (selectedMeses.length > 0 && selectedMeses.length < 3) {
+                labels = selectedMeses;
+                data = selectedMeses.map(mes => promediosMensuales[mes]);
+            }
+            
+            const ctx3 = document.getElementById('chartRendimiento').getContext('2d');
+            chartRendimiento = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Rendimiento Mensual',
+                            data: data,
+                            backgroundColor: labels.map(mes => coloresMeses[mes] || 'rgba(200, 200, 200, 0.8)'),
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            barPercentage: 0.6,
+                            order: 1
+                        },
+                        {
+                            label: 'Promedio Total: ' + promedioTotal + '%',
+                            data: labels.map(() => promedioTotal),
+                            type: 'line',
+                            borderColor: '#2d3748',
+                            backgroundColor: 'rgba(45, 55, 72, 0.1)',
+                            borderWidth: 3,
+                            borderDash: [8, 4],
+                            pointRadius: 5,
+                            pointBackgroundColor: '#2d3748',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            fill: false,
+                            tension: 0,
+                            order: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: { size: 12, weight: 'bold' },
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.label.includes('Promedio')) {
+                                        return context.dataset.label;
+                                    }
+                                    return context.dataset.label + ': ' + context.parsed.y + '%';
+                                }
+                            }
                         }
                     },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y + '%';
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) { return value + '%'; },
+                                font: { size: 11 }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Rendimiento (%)',
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mes',
+                                font: { size: 12, weight: 'bold' }
                             }
                         }
                     }
+                }
+            });
+        } else {
+            // Múltiples módulos seleccionados - Mostrar comparativa por mes y módulo
+            const datasets = [];
+            
+            // Colores para módulos
+            const coloresModulos = [
+                'rgba(102, 126, 234, 0.8)',
+                'rgba(246, 173, 85, 0.8)',
+                'rgba(104, 211, 145, 0.8)',
+                'rgba(252, 129, 129, 0.8)',
+                'rgba(159, 122, 234, 0.8)',
+                'rgba(237, 137, 54, 0.8)'
+            ];
+            
+            // Determinar qué meses mostrar
+            let mesesMostrar = mesesDisponibles;
+            if (selectedMeses.length > 0 && selectedMeses.length < 3) {
+                mesesMostrar = selectedMeses;
+            }
+            
+            selectedModulos.forEach((modulo, index) => {
+                const datosModulo = filteredData.filter(d => d.modulo === modulo);
+                const dataPorMes = mesesMostrar.map(mes => {
+                    const dataMes = datosModulo.filter(d => d.mes === mes);
+                    if (dataMes.length > 0) {
+                        return Math.round(dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length);
+                    }
+                    return 0;
+                });
+                
+                // Calcular promedio del módulo
+                const promedioModulo = datosModulo.length > 0 ? 
+                    Math.round(datosModulo.reduce((sum, d) => sum + d.rendimiento, 0) / datosModulo.length) : 0;
+                
+                datasets.push({
+                    label: modulo + ' (Prom: ' + promedioModulo + '%)',
+                    data: dataPorMes,
+                    backgroundColor: coloresModulos[index % coloresModulos.length],
+                    borderRadius: 4,
+                    borderSkipped: false,
+                    barPercentage: 0.7
+                });
+            });
+            
+            const ctx3 = document.getElementById('chartRendimiento').getContext('2d');
+            chartRendimiento = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: mesesMostrar,
+                    datasets: datasets
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) { return value + '%'; },
-                            font: { size: 11 }
-                        },
-                        title: {
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
                             display: true,
-                            text: 'Rendimiento (%)',
-                            font: { size: 12, weight: 'bold' }
+                            position: 'top',
+                            labels: {
+                                font: { size: 11 },
+                                usePointStyle: true,
+                                padding: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y + '%';
+                                }
+                            }
                         }
                     },
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 30,
-                            font: { size: 9 }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) { return value + '%'; },
+                                font: { size: 11 }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Rendimiento (%)',
+                                font: { size: 12, weight: 'bold' }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Mes',
+                                font: { size: 12, weight: 'bold' }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     }
 }
 
@@ -533,8 +552,8 @@ function updateTable() {
 }
 
 function resetFilters() {
-    document.getElementById('mesFilter').value = 'todos';
-    document.getElementById('moduloFilter').value = 'todos';
+    document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.mes-checkbox').forEach(cb => cb.checked = true);
     document.getElementById('diaFilter').value = '31';
     document.getElementById('diaValue').textContent = '31';
     updateDashboard();
