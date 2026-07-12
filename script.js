@@ -1,9 +1,11 @@
-// script.js - Versión Simplificada
+// script.js - Con tortas en porcentaje y múltiples
 let allData = [];
 let filteredData = [];
 let chartEvolucion = null;
-let chartGravedad = null;
 let chartRendimiento = null;
+
+// Array para almacenar múltiples gráficos de torta
+let gravedadCharts = [];
 
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar datos
@@ -138,12 +140,21 @@ function updateKPIs() {
 }
 
 function updateCharts() {
-    // Destruir gráficos anteriores
-    if (chartEvolucion) { chartEvolucion.destroy(); chartEvolucion = null; }
-    if (chartGravedad) { chartGravedad.destroy(); chartGravedad = null; }
-    if (chartRendimiento) { chartRendimiento.destroy(); chartRendimiento = null; }
+    // === DESTRUIR GRÁFICOS ANTERIORES ===
+    if (chartEvolucion) {
+        chartEvolucion.destroy();
+        chartEvolucion = null;
+    }
+    if (chartRendimiento) {
+        chartRendimiento.destroy();
+        chartRendimiento = null;
+    }
     
-    // Gráfico 1: Evolución
+    // Destruir gráficos de torta anteriores
+    gravedadCharts.forEach(chart => chart.destroy());
+    gravedadCharts = [];
+    
+    // === GRÁFICO 1: Evolución de Atenciones ===
     const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
     const totalesPorDia = dias.map(dia => 
         filteredData.filter(d => d.dia === dia).reduce((sum, d) => sum + d.total, 0)
@@ -166,141 +177,156 @@ function updateCharts() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: { legend: { display: true, position: 'top' } },
             scales: { y: { beginAtZero: true, min: 0 } }
         }
     });
     
-    // Gráfico 2: Gravedad
-    const leve = filteredData.reduce((sum, d) => sum + d.leve, 0);
-    const mod = filteredData.reduce((sum, d) => sum + d.mod, 0);
-    const sev = filteredData.reduce((sum, d) => sum + d.sev, 0);
+    // === GRÁFICO 2: Múltiples Tortas de Gravedad (en porcentaje) ===
+    const container = document.getElementById('gravedadContainer');
+    container.innerHTML = '';
     
-    chartGravedad = new Chart(document.getElementById('chartGravedad'), {
-        type: 'doughnut',
+    // Determinar qué módulos mostrar
+    const selectedModulos = getSelectedModulos();
+    let modulosMostrar = [];
+    
+    if (selectedModulos.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#a0aec0;padding:20px;">📭 Selecciona al menos un módulo</p>';
+    } else {
+        modulosMostrar = selectedModulos.filter(m => m !== 'Gine').sort();
+        
+        if (modulosMostrar.length === 0 || filteredData.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:#a0aec0;padding:20px;">📭 No hay datos para los filtros seleccionados</p>';
+        } else {
+            // Crear una torta por cada módulo
+            modulosMostrar.forEach(modulo => {
+                const dataModulo = filteredData.filter(d => d.modulo === modulo);
+                
+                if (dataModulo.length === 0) return;
+                
+                const leve = dataModulo.reduce((sum, d) => sum + d.leve, 0);
+                const mod = dataModulo.reduce((sum, d) => sum + d.mod, 0);
+                const sev = dataModulo.reduce((sum, d) => sum + d.sev, 0);
+                const total = leve + mod + sev;
+                
+                // Calcular porcentajes
+                const levePct = total > 0 ? Math.round((leve / total) * 100) : 0;
+                const modPct = total > 0 ? Math.round((mod / total) * 100) : 0;
+                const sevPct = total > 0 ? Math.round((sev / total) * 100) : 0;
+                
+                // Crear contenedor para esta torta
+                const item = document.createElement('div');
+                item.className = 'torta-item';
+                
+                const titleModulo = document.createElement('h4');
+                titleModulo.textContent = modulo + ' (n=' + total + ')';
+                item.appendChild(titleModulo);
+                
+                const canvas = document.createElement('canvas');
+                canvas.id = 'torta-' + modulo.replace(/\s/g, '');
+                item.appendChild(canvas);
+                
+                // Mostrar porcentajes en texto
+                const leyenda = document.createElement('div');
+                leyenda.className = 'torta-leyenda';
+                leyenda.innerHTML = `
+                    <span style="color:#48bb78;">● Leve ${levePct}%</span> | 
+                    <span style="color:#ed8936;">● Moderado ${modPct}%</span> | 
+                    <span style="color:#fc8181;">● Severo ${sevPct}%</span>
+                `;
+                item.appendChild(leyenda);
+                
+                container.appendChild(item);
+                
+                // Crear el gráfico
+                const ctx = canvas.getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Leve', 'Moderado', 'Severo'],
+                        datasets: [{
+                            data: [leve, mod, sev],
+                            backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
+                            borderWidth: 2,
+                            borderColor: 'white'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { 
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+                                        return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '55%'
+                    }
+                });
+                
+                gravedadCharts.push(chart);
+            });
+        }
+    }
+    
+    // === GRÁFICO 3: Rendimiento por Módulo ===
+    const modulosRendimiento = {};
+    filteredData.forEach(d => {
+        if (d.modulo === 'Gine') return;
+        if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
+        modulosRendimiento[d.modulo].push(d.rendimiento);
+    });
+    
+    const modulos = Object.keys(modulosRendimiento).sort();
+    const rendimientos = modulos.map(modulo => {
+        const rends = modulosRendimiento[modulo];
+        return Math.round(rends.reduce((a, b) => a + b, 0) / rends.length);
+    });
+    
+    chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
+        type: 'bar',
         data: {
-            labels: ['🟢 Leve', '🟡 Moderado', '🔴 Severo'],
+            labels: modulos,
             datasets: [{
-                data: [leve, mod, sev],
-                backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
-                borderWidth: 3,
-                borderColor: 'white'
+                label: 'Rendimiento Promedio (%)',
+                data: rendimientos,
+                backgroundColor: rendimientos.map(r => 
+                    r >= 80 ? '#48bb78' : 
+                    r >= 60 ? '#ed8936' : 
+                    '#fc8181'
+                ),
+                borderRadius: 8,
+                borderSkipped: false
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'bottom' } },
-            cutout: '60%'
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { callback: function(value) { return value + '%'; } }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 30
+                    }
+                }
+            }
         }
     });
-    
-    // Gráfico 3: Rendimiento
-    const selectedModulos = getSelectedModulos();
-    const selectedMeses = getSelectedMeses();
-    const meses = ['MAYO', 'JUNIO', 'JULIO'];
-    
-    if (selectedModulos.length === 1) {
-        // Un módulo: mostrar por mes + promedio
-        const modulo = selectedModulos[0];
-        const datosModulo = filteredData.filter(d => d.modulo === modulo);
-        
-        const promediosMensuales = meses.map(mes => {
-            const dataMes = datosModulo.filter(d => d.mes === mes);
-            return dataMes.length > 0 ? Math.round(dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length) : 0;
-        });
-        
-        const promedioTotal = datosModulo.length > 0 ? 
-            Math.round(datosModulo.reduce((sum, d) => sum + d.rendimiento, 0) / datosModulo.length) : 0;
-        
-        let labels = meses;
-        let data = promediosMensuales;
-        if (selectedMeses.length > 0 && selectedMeses.length < 3) {
-            labels = selectedMeses;
-            data = selectedMeses.map(mes => promediosMensuales[meses.indexOf(mes)]);
-        }
-        
-        chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Rendimiento Mensual',
-                        data: data,
-                        backgroundColor: ['#f6ad55', '#68d391', '#fc8181'],
-                        borderRadius: 8,
-                        barPercentage: 0.6
-                    },
-                    {
-                        label: 'Promedio Total: ' + promedioTotal + '%',
-                        data: labels.map(() => promedioTotal),
-                        type: 'line',
-                        borderColor: '#2d3748',
-                        borderWidth: 3,
-                        borderDash: [8, 4],
-                        pointRadius: 5,
-                        pointBackgroundColor: '#2d3748',
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { 
-                    legend: { position: 'top' },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                if (context.dataset.label.includes('Promedio')) {
-                                    return context.dataset.label;
-                                }
-                                return context.dataset.label + ': ' + context.parsed.y + '%';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
-                }
-            }
-        });
-    } else {
-        // Múltiples módulos: barras agrupadas
-        const datasets = [];
-        const colores = ['#667eea', '#f6ad55', '#68d391', '#fc8181', '#9f7aea', '#ed8936'];
-        
-        let labels = meses;
-        if (selectedMeses.length > 0 && selectedMeses.length < 3) {
-            labels = selectedMeses;
-        }
-        
-        selectedModulos.forEach((modulo, index) => {
-            const dataPorMes = labels.map(mes => {
-                const dataMes = filteredData.filter(d => d.modulo === modulo && d.mes === mes);
-                return dataMes.length > 0 ? Math.round(dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length) : 0;
-            });
-            const promedio = dataPorMes.reduce((a, b) => a + b, 0) / dataPorMes.length;
-            datasets.push({
-                label: modulo + ' (Prom: ' + Math.round(promedio) + '%)',
-                data: dataPorMes,
-                backgroundColor: colores[index % colores.length],
-                borderRadius: 4,
-                barPercentage: 0.7
-            });
-        });
-        
-        chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
-            type: 'bar',
-            data: { labels: labels, datasets: datasets },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'top' } },
-                scales: {
-                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
-                }
-            }
-        });
-    }
 }
 
 function updateTable() {
@@ -308,7 +334,7 @@ function updateTable() {
     tbody.innerHTML = '';
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#a0aec0;">📭 No hay datos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#a0aec0;">📭 No hay datos para los filtros seleccionados</td></tr>';
         return;
     }
     
