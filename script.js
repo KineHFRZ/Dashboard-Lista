@@ -1,4 +1,4 @@
-// script.js - VERSIÓN ESTABLE CON ACTUALIZACIÓN DINÁMICA
+// script.js - VERSIÓN OPTIMIZADA CON GRÁFICOS DESCRIPTIVOS
 let allData = [];
 let filteredData = [];
 
@@ -6,6 +6,7 @@ let filteredData = [];
 let chartEvolucion = null;
 let chartGravedad = null;
 let chartRendimiento = null;
+let chartRendimientoMensual = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar que los datos existen
@@ -36,7 +37,7 @@ function populateModuloFilter() {
     const modulos = [...new Set(allData.map(d => d.modulo))].sort();
     const select = document.getElementById('moduloFilter');
     modulos.forEach(modulo => {
-        if (modulo !== 'Gine') { // Excluir Gine
+        if (modulo !== 'Gine') {
             const option = document.createElement('option');
             option.value = modulo;
             option.textContent = modulo;
@@ -110,9 +111,13 @@ function updateCharts() {
         chartRendimiento.destroy();
         chartRendimiento = null;
     }
+    if (chartRendimientoMensual) {
+        chartRendimientoMensual.destroy();
+        chartRendimientoMensual = null;
+    }
     
     // ============================================
-    // GRÁFICO 1: Evolución de Atenciones por Día
+    // GRÁFICO 1: Evolución de Atenciones por Día (CORREGIDO)
     // ============================================
     const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
     const totalesPorDia = dias.map(dia => 
@@ -132,10 +137,11 @@ function updateCharts() {
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
-                pointRadius: 4,
+                pointRadius: 5,
                 pointBackgroundColor: '#667eea',
                 pointBorderColor: '#fff',
-                pointBorderWidth: 2
+                pointBorderWidth: 2,
+                pointHoverRadius: 8
             }]
         },
         options: {
@@ -147,16 +153,30 @@ function updateCharts() {
                     position: 'top',
                     labels: {
                         usePointStyle: true,
-                        padding: 20
+                        padding: 20,
+                        font: { size: 13, weight: 'bold' }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total Atenciones: ' + context.parsed.y;
+                        }
                     }
                 }
             },
             scales: {
                 y: { 
                     beginAtZero: true,
+                    min: 0,
                     ticks: { 
-                        stepSize: 1,
+                        stepSize: 5,
                         font: { size: 11 }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Número de Atenciones',
+                        font: { size: 12, weight: 'bold' }
                     }
                 },
                 x: {
@@ -226,8 +246,11 @@ function updateCharts() {
     });
     
     // ============================================
-    // GRÁFICO 3: Rendimiento por Módulo
+    // GRÁFICO 3: Rendimiento por Módulo (PROMEDIO GENERAL)
     // ============================================
+    const moduloSeleccionado = document.getElementById('moduloFilter').value;
+    const mesSeleccionado = document.getElementById('mesFilter').value;
+    
     const modulosRendimiento = {};
     filteredData.forEach(d => {
         if (d.modulo === 'Gine') return;
@@ -306,6 +329,176 @@ function updateCharts() {
             }
         }
     });
+    
+    // ============================================
+    // GRÁFICO 4: Rendimiento Mensual por Módulo (NUEVO)
+    // ============================================
+    const ctx4 = document.getElementById('chartRendimientoMensual').getContext('2d');
+    
+    let datosMensuales = {};
+    let mesesDisponibles = ['MAYO', 'JUNIO', 'JULIO'];
+    
+    // Si hay un módulo seleccionado, mostrar su rendimiento por mes
+    if (moduloSeleccionado !== 'todos') {
+        // Filtrar datos por módulo
+        const dataModulo = allData.filter(d => d.modulo === moduloSeleccionado && d.modulo !== 'Gine');
+        
+        // Agrupar por mes y calcular promedio
+        mesesDisponibles.forEach(mes => {
+            const dataMes = dataModulo.filter(d => d.mes === mes);
+            if (dataMes.length > 0) {
+                const promedio = dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length;
+                datosMensuales[mes] = Math.round(promedio);
+            } else {
+                datosMensuales[mes] = 0;
+            }
+        });
+        
+        // Si hay filtro de mes, solo mostrar ese mes
+        if (mesSeleccionado !== 'todos') {
+            const temp = {};
+            temp[mesSeleccionado] = datosMensuales[mesSeleccionado] || 0;
+            datosMensuales = temp;
+        }
+        
+        chartRendimientoMensual = new Chart(ctx4, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(datosMensuales),
+                datasets: [{
+                    label: 'Rendimiento Mensual - ' + moduloSeleccionado,
+                    data: Object.values(datosMensuales),
+                    backgroundColor: ['#f6ad55', '#68d391', '#fc8181'],
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barPercentage: 0.5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { 
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Rendimiento: ' + context.parsed.y + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) { return value + '%'; },
+                            font: { size: 11 }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Rendimiento (%)',
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mes',
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        // Si no hay módulo seleccionado, mostrar comparativa por módulo y mes
+        const modulosUnicos = [...new Set(allData.filter(d => d.modulo !== 'Gine').map(d => d.modulo))].sort();
+        
+        // Colores por mes
+        const coloresMeses = {
+            'MAYO': 'rgba(246, 173, 85, 0.8)',
+            'JUNIO': 'rgba(104, 211, 145, 0.8)',
+            'JULIO': 'rgba(252, 129, 129, 0.8)'
+        };
+        
+        const datasets = mesesDisponibles.map(mes => {
+            const dataMes = modulosUnicos.map(modulo => {
+                const dataModulo = allData.filter(d => d.modulo === modulo && d.mes === mes);
+                if (dataModulo.length > 0) {
+                    return Math.round(dataModulo.reduce((sum, d) => sum + d.rendimiento, 0) / dataModulo.length);
+                }
+                return 0;
+            });
+            
+            return {
+                label: mes,
+                data: dataMes,
+                backgroundColor: coloresMeses[mes] || 'rgba(200, 200, 200, 0.8)',
+                borderRadius: 4,
+                borderSkipped: false,
+                barPercentage: 0.6
+            };
+        });
+        
+        chartRendimientoMensual = new Chart(ctx4, {
+            type: 'bar',
+            data: {
+                labels: modulosUnicos,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { 
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: { size: 12, weight: 'bold' },
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y + '%';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) { return value + '%'; },
+                            font: { size: 11 }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Rendimiento (%)',
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 30,
+                            font: { size: 9 }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 function updateTable() {
