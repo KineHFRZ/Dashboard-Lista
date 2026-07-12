@@ -1,11 +1,11 @@
-// script.js - Versión Original
+// script.js - Con tortas múltiples por módulo y porcentajes
 let allData = [];
 let filteredData = [];
 
 // Variables para los gráficos
 let chartEvolucion = null;
-let chartGravedad = null;
 let chartRendimiento = null;
+let chartsGravedad = []; // Array para múltiples tortas
 
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar que los datos existen
@@ -106,14 +106,14 @@ function updateCharts() {
         chartEvolucion.destroy();
         chartEvolucion = null;
     }
-    if (chartGravedad) {
-        chartGravedad.destroy();
-        chartGravedad = null;
-    }
     if (chartRendimiento) {
         chartRendimiento.destroy();
         chartRendimiento = null;
     }
+    
+    // Destruir tortas anteriores
+    chartsGravedad.forEach(chart => chart.destroy());
+    chartsGravedad = [];
     
     // === GRÁFICO 1: Evolución de Atenciones ===
     const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
@@ -156,39 +156,104 @@ function updateCharts() {
         }
     });
     
-    // === GRÁFICO 2: Distribución por Gravedad ===
-    const leveTotal = filteredData.reduce((sum, d) => sum + d.leve, 0);
-    const modTotal = filteredData.reduce((sum, d) => sum + d.mod, 0);
-    const sevTotal = filteredData.reduce((sum, d) => sum + d.sev, 0);
+    // === GRÁFICO 2: Múltiples Tortas de Gravedad ===
+    const container = document.getElementById('gravedadContainer');
+    container.innerHTML = '';
     
-    const ctx2 = document.getElementById('chartGravedad').getContext('2d');
-    chartGravedad = new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-            labels: ['Leve', 'Moderado', 'Severo'],
-            datasets: [{
-                data: [leveTotal, modTotal, sevTotal],
-                backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
-                borderWidth: 3,
-                borderColor: 'white'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { 
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true,
-                        pointStyle: 'circle'
-                    }
+    // Determinar qué módulos mostrar
+    const moduloSeleccionado = document.getElementById('moduloFilter').value;
+    const meses = document.getElementById('mesFilter').value;
+    
+    let modulosMostrar = [];
+    if (moduloSeleccionado === 'todos') {
+        // Si está "Todos", mostrar todos los módulos
+        modulosMostrar = [...new Set(filteredData.map(d => d.modulo))].filter(m => m !== 'Gine').sort();
+    } else {
+        // Si está seleccionado uno, mostrar solo ese
+        modulosMostrar = [moduloSeleccionado];
+    }
+    
+    // Si no hay datos o módulos, mostrar mensaje
+    if (modulosMostrar.length === 0 || filteredData.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#a0aec0;padding:20px;">No hay datos para mostrar</p>';
+    } else {
+        // Crear una torta por cada módulo
+        modulosMostrar.forEach(modulo => {
+            const dataModulo = filteredData.filter(d => d.modulo === modulo);
+            
+            if (dataModulo.length === 0) return;
+            
+            const leve = dataModulo.reduce((sum, d) => sum + d.leve, 0);
+            const mod = dataModulo.reduce((sum, d) => sum + d.mod, 0);
+            const sev = dataModulo.reduce((sum, d) => sum + d.sev, 0);
+            const total = leve + mod + sev;
+            
+            // Calcular porcentajes
+            const levePct = total > 0 ? Math.round((leve / total) * 100) : 0;
+            const modPct = total > 0 ? Math.round((mod / total) * 100) : 0;
+            const sevPct = total > 0 ? Math.round((sev / total) * 100) : 0;
+            
+            // Crear contenedor para esta torta
+            const item = document.createElement('div');
+            item.className = 'torta-item';
+            
+            const title = document.createElement('h4');
+            title.textContent = modulo + ' (n=' + total + ')';
+            item.appendChild(title);
+            
+            const canvas = document.createElement('canvas');
+            canvas.id = 'torta-' + modulo.replace(/\s/g, '');
+            item.appendChild(canvas);
+            
+            // Mostrar porcentajes en texto
+            const leyenda = document.createElement('div');
+            leyenda.className = 'torta-leyenda';
+            leyenda.innerHTML = `
+                <span style="color:#48bb78;">● Leve ${levePct}%</span> | 
+                <span style="color:#ed8936;">● Moderado ${modPct}%</span> | 
+                <span style="color:#fc8181;">● Severo ${sevPct}%</span>
+            `;
+            item.appendChild(leyenda);
+            
+            container.appendChild(item);
+            
+            // Crear el gráfico
+            const ctx = canvas.getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Leve', 'Moderado', 'Severo'],
+                    datasets: [{
+                        data: [leve, mod, sev],
+                        backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
+                        borderWidth: 2,
+                        borderColor: 'white'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0;
+                                    return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    },
+                    cutout: '55%'
                 }
-            },
-            cutout: '60%'
-        }
-    });
+            });
+            
+            chartsGravedad.push(chart);
+        });
+    }
     
     // === GRÁFICO 3: Rendimiento por Módulo ===
     const modulosRendimiento = {};
