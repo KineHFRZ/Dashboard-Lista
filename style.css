@@ -1,34 +1,62 @@
 /* Badges para la tabla */
 .badge {
     display: inline-block;
-    padding: 2px 10px;
+    padding: 3px 12px;
     border-radius: 12px;
     font-size: 0.75em;
     font-weight: 600;
     color: white;
 }
 
-.badge.mayo {
-    background: #f6ad55;
+.badge-mayo {
+    background: linear-gradient(135deg, #f6ad55, #ed8936);
 }
 
-.badge.junio {
-    background: #68d391;
+.badge-junio {
+    background: linear-gradient(135deg, #68d391, #48bb78);
 }
 
-.badge.julio {
-    background: #fc8181;
+.badge-julio {
+    background: linear-gradient(135deg, #fc8181, #f56565);
 }
 
-/* Mensaje sin datos */
-.no-data {
+/* Animación suave al cambiar */
+.chart-card {
+    transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+/* Mensaje de no datos */
+.no-data-message {
     text-align: center;
-    padding: 30px;
+    padding: 40px;
     color: #a0aec0;
-    font-size: 1.1em;
+    font-size: 1.2em;
 }
 
-/* Animación de carga de gráficos */
-.chart-card canvas {
-    transition: opacity 0.3s ease;
+/* Tooltips mejorados */
+#diaValue {
+    font-weight: 600;
+    color: #667eea;
+    min-width: 20px;
+    display: inline-block;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .kpi-card p {
+        font-size: 1.8em;
+    }
+    
+    .badge {
+        font-size: 0.65em;
+        padding: 2px 8px;
+    }
 }
