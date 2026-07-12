@@ -1,286 +1,348 @@
-// script.js - Versión Original
-let allData = [];
-let filteredData = [];
-
-// Variables para los gráficos
-let chartEvolucion = null;
-let chartGravedad = null;
-let chartRendimiento = null;
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Verificar que los datos existen
-    if (typeof data === 'undefined') {
-        console.error('❌ Error: data.js no está cargado');
-        alert('Error: No se encontraron datos. Verifica que data.js esté cargado.');
-        return;
-    }
-    
-    allData = data;
-    filteredData = [...allData];
-    populateModuloFilter();
-    
-    // Event listeners
-    document.getElementById('mesFilter').addEventListener('change', updateDashboard);
-    document.getElementById('moduloFilter').addEventListener('change', updateDashboard);
-    document.getElementById('diaFilter').addEventListener('input', function() {
-        document.getElementById('diaValue').textContent = this.value;
-        updateDashboard();
-    });
-    document.getElementById('resetFilters').addEventListener('click', resetFilters);
-    
-    // Inicializar dashboard
-    updateDashboard();
-});
-
-function populateModuloFilter() {
-    const modulos = [...new Set(allData.map(d => d.modulo))].sort();
-    const select = document.getElementById('moduloFilter');
-    modulos.forEach(modulo => {
-        if (modulo !== 'Gine') {
-            const option = document.createElement('option');
-            option.value = modulo;
-            option.textContent = modulo;
-            select.appendChild(option);
-        }
-    });
+/* style.css - Versión Corregida con Tamaños Ajustados */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-function updateDashboard() {
-    // Obtener filtros
-    const mes = document.getElementById('mesFilter').value;
-    const modulo = document.getElementById('moduloFilter').value;
-    const diaMax = parseInt(document.getElementById('diaFilter').value);
-    
-    // Aplicar filtros
-    filteredData = allData.filter(d => {
-        let match = true;
-        if (mes !== 'todos') match = match && d.mes === mes;
-        if (modulo !== 'todos') match = match && d.modulo === modulo;
-        if (diaMax < 31) match = match && d.dia <= diaMax;
-        return match;
-    });
-    
-    // Actualizar KPIs
-    updateKPIs();
-    
-    // Actualizar gráficos
-    updateCharts();
-    
-    // Actualizar tabla
-    updateTable();
+body {
+    background: #f0f2f5;
+    padding: 20px;
 }
 
-function updateKPIs() {
-    const total = filteredData.reduce((sum, d) => sum + d.total, 0);
-    const promedio = filteredData.length > 0 ? Math.round(total / filteredData.length) : 0;
-    const rendimientoPromedio = filteredData.length > 0 ? 
-        Math.round(filteredData.reduce((sum, d) => sum + d.rendimiento, 0) / filteredData.length) : 0;
-    
-    // Calcular mejor módulo
-    const modulosRendimiento = {};
-    filteredData.forEach(d => {
-        if (d.modulo === 'Gine') return;
-        if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
-        modulosRendimiento[d.modulo].push(d.rendimiento);
-    });
-    
-    let mejorModulo = '-';
-    let mejorPromedio = -1;
-    for (const [modulo, rendimientos] of Object.entries(modulosRendimiento)) {
-        const promedioMod = rendimientos.reduce((a, b) => a + b, 0) / rendimientos.length;
-        if (promedioMod > mejorPromedio) {
-            mejorPromedio = promedioMod;
-            mejorModulo = modulo;
-        }
-    }
-    
-    document.getElementById('kpiTotal').textContent = total;
-    document.getElementById('kpiPromedio').textContent = promedio;
-    document.getElementById('kpiRendimiento').textContent = rendimientoPromedio + '%';
-    document.getElementById('kpiMejorModulo').textContent = mejorModulo + (mejorPromedio > 0 ? ' (' + Math.round(mejorPromedio) + '%)' : '');
+.dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-function updateCharts() {
-    // === DESTRUIR GRÁFICOS ANTERIORES ===
-    if (chartEvolucion) {
-        chartEvolucion.destroy();
-        chartEvolucion = null;
-    }
-    if (chartGravedad) {
-        chartGravedad.destroy();
-        chartGravedad = null;
-    }
-    if (chartRendimiento) {
-        chartRendimiento.destroy();
-        chartRendimiento = null;
-    }
-    
-    // === GRÁFICO 1: Evolución de Atenciones ===
-    const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
-    const totalesPorDia = dias.map(dia => 
-        filteredData.filter(d => d.dia === dia).reduce((sum, d) => sum + d.total, 0)
-    );
-    
-    const ctx1 = document.getElementById('chartEvolucion').getContext('2d');
-    chartEvolucion = new Chart(ctx1, {
-        type: 'line',
-        data: {
-            labels: dias,
-            datasets: [{
-                label: 'Total Atenciones',
-                data: totalesPorDia,
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                borderWidth: 3,
-                tension: 0.3,
-                fill: true,
-                pointRadius: 4,
-                pointBackgroundColor: '#667eea'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: { 
-                    beginAtZero: true,
-                    ticks: { stepSize: 1 }
-                },
-                x: {
-                    title: { display: true, text: 'Día del Mes' }
-                }
-            }
-        }
-    });
-    
-    // === GRÁFICO 2: Distribución por Gravedad ===
-    const leveTotal = filteredData.reduce((sum, d) => sum + d.leve, 0);
-    const modTotal = filteredData.reduce((sum, d) => sum + d.mod, 0);
-    const sevTotal = filteredData.reduce((sum, d) => sum + d.sev, 0);
-    
-    const ctx2 = document.getElementById('chartGravedad').getContext('2d');
-    chartGravedad = new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-            labels: ['Leve', 'Moderado', 'Severo'],
-            datasets: [{
-                data: [leveTotal, modTotal, sevTotal],
-                backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
-                borderWidth: 3,
-                borderColor: 'white'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { 
-                    position: 'bottom',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true,
-                        pointStyle: 'circle'
-                    }
-                }
-            },
-            cutout: '60%'
-        }
-    });
-    
-    // === GRÁFICO 3: Rendimiento por Módulo ===
-    const modulosRendimiento = {};
-    filteredData.forEach(d => {
-        if (d.modulo === 'Gine') return;
-        if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
-        modulosRendimiento[d.modulo].push(d.rendimiento);
-    });
-    
-    const modulos = Object.keys(modulosRendimiento).sort();
-    const rendimientos = modulos.map(modulo => {
-        const rends = modulosRendimiento[modulo];
-        return Math.round(rends.reduce((a, b) => a + b, 0) / rends.length);
-    });
-    
-    const ctx3 = document.getElementById('chartRendimiento').getContext('2d');
-    chartRendimiento = new Chart(ctx3, {
-        type: 'bar',
-        data: {
-            labels: modulos,
-            datasets: [{
-                label: 'Rendimiento Promedio (%)',
-                data: rendimientos,
-                backgroundColor: rendimientos.map(r => 
-                    r >= 80 ? '#48bb78' : 
-                    r >= 60 ? '#ed8936' : 
-                    '#fc8181'
-                ),
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) { return value + '%'; }
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                }
-            }
-        }
-    });
+/* Header */
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 15px;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
 }
 
-function updateTable() {
-    const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = '';
-    
-    if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#a0aec0;">📭 No hay datos para los filtros seleccionados</td></tr>';
-        return;
-    }
-    
-    // Ordenar por mes y día
-    const sortedData = [...filteredData].sort((a, b) => {
-        if (a.mes !== b.mes) return a.mes.localeCompare(b.mes);
-        return a.dia - b.dia;
-    });
-    
-    sortedData.forEach(d => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${d.dia}</td>
-            <td><span class="badge badge-${d.mes.toLowerCase()}">${d.mes}</span></td>
-            <td>${d.modulo}</td>
-            <td><strong>${d.total}</strong></td>
-            <td>${d.leve}</td>
-            <td>${d.mod}</td>
-            <td>${d.sev}</td>
-            <td>${d.rendimiento}%</td>
-        `;
-        tbody.appendChild(tr);
-    });
+.header h1 {
+    font-size: 2em;
+    margin-bottom: 8px;
 }
 
-function resetFilters() {
-    document.getElementById('mesFilter').value = 'todos';
-    document.getElementById('moduloFilter').value = 'todos';
-    document.getElementById('diaFilter').value = '31';
-    document.getElementById('diaValue').textContent = '31';
-    updateDashboard();
+.header p {
+    opacity: 0.9;
+    font-size: 1em;
+}
+
+/* Filtros */
+.filters {
+    background: white;
+    padding: 18px 22px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9em;
+}
+
+.filter-group select {
+    padding: 6px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 120px;
+}
+
+.filter-group select:hover {
+    border-color: #667eea;
+}
+
+.filter-group input[type="range"] {
+    width: 120px;
+    padding: 0;
+    accent-color: #667eea;
+}
+
+#diaValue {
+    font-weight: 600;
+    color: #667eea;
+    min-width: 25px;
+    font-size: 0.95em;
+}
+
+#resetFilters {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-left: auto;
+}
+
+#resetFilters:hover {
+    background: #5a67d8;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* KPIs */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 25px;
+}
+
+.kpi-card {
+    background: white;
+    padding: 18px 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    text-align: center;
+    transition: transform 0.3s;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.kpi-card h3 {
+    color: #666;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.kpi-card p {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.kpi-card p#kpiMejorModulo {
+    font-size: 1.2em;
+}
+
+/* Gráficos */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+    margin-bottom: 25px;
+}
+
+.chart-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.chart-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.chart-card h2 {
+    font-size: 1.1em;
+    color: #2d3748;
+    margin-bottom: 15px;
+}
+
+.chart-card canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px !important;
+}
+
+/* Tabla */
+.table-section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.table-section h2 {
+    font-size: 1.1em;
+    margin-bottom: 15px;
+    color: #2d3748;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+tbody tr:hover {
+    background: #f7fafc;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    font-weight: 600;
+    color: white;
+}
+
+.badge-mayo {
+    background: #f6ad55;
+}
+
+.badge-junio {
+    background: #68d391;
+}
+
+.badge-julio {
+    background: #fc8181;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .header {
+        padding: 18px 20px;
+    }
+    
+    .header h1 {
+        font-size: 1.5em;
+    }
+    
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 15px;
+    }
+    
+    .filter-group {
+        flex-wrap: wrap;
+    }
+    
+    .filter-group select {
+        flex: 1;
+        min-width: 100px;
+    }
+    
+    #resetFilters {
+        margin-left: 0;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    
+    .kpi-card {
+        padding: 14px;
+    }
+    
+    .kpi-card p {
+        font-size: 1.5em;
+    }
+    
+    .kpi-card p#kpiMejorModulo {
+        font-size: 1em;
+    }
+    
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+    
+    .chart-card {
+        padding: 15px;
+    }
+    
+    .chart-card canvas {
+        max-height: 220px !important;
+    }
+    
+    .table-section {
+        padding: 15px;
+    }
+    
+    table {
+        font-size: 0.75em;
+    }
+    
+    th, td {
+        padding: 6px 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .kpi-card {
+        padding: 10px;
+    }
+    
+    .kpi-card h3 {
+        font-size: 0.6em;
+    }
+    
+    .kpi-card p {
+        font-size: 1.2em;
+    }
+    
+    .header h1 {
+        font-size: 1.2em;
+    }
 }
