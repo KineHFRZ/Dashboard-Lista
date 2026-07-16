@@ -1,42 +1,96 @@
-// script.js - Versión Simplificada
+// script.js - Dashboard de Ventilación Mecánica y CNAF
 let allData = [];
 let filteredData = [];
-let chartEvolucion = null;
-let chartGravedad = null;
-let chartRendimiento = null;
+let chartPacientesMes = null;
+let chartSexo = null;
+let chartMotivos = null;
+let chartEdades = null;
+let chartDiasPromedio = null;
+
+// Orden cronológico de meses
+const ORDER_MESES = [
+    'NOVIEMBRE 2025',
+    'DICIEMBRE 2025',
+    'ENERO 2026',
+    'FEBRERO 2026',
+    'MARZO 2026',
+    'ABRIL 2026',
+    'MAYO 2026',
+    'JUNIO 2026',
+    'JULIO 2026',
+    'AGOSTO 2026',
+    'SEPTIEMBRE 2026',
+    'OCTUBRE 2026'
+];
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Verificar datos
     if (typeof data === 'undefined') {
-        document.body.innerHTML = '<h1 style="color:red;text-align:center;padding:50px;">❌ Error: No se encontraron datos. Verifica que data.js esté cargado.</h1>';
+        document.body.innerHTML = '<h1 style="color:red;text-align:center;padding:50px;">❌ Error: No se encontraron datos</h1>';
         return;
     }
     
     allData = data;
     filteredData = [...allData];
     
-    // Poblar filtros
-    populateModuloFilter();
-    populateMesFilter();
-    
-    // Event listeners
-    document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.addEventListener('change', updateDashboard));
-    document.querySelectorAll('.mes-checkbox').forEach(cb => cb.addEventListener('change', updateDashboard));
-    
-    document.getElementById('diaFilter').addEventListener('input', function() {
-        document.getElementById('diaValue').textContent = this.value;
-        updateDashboard();
+    populateFilters();
+    setupEventListeners();
+    updateDashboard();
+});
+
+function populateFilters() {
+    // Meses (ordenados cronológicamente)
+    const meses = [...new Set(allData.map(d => d.mes))].sort((a, b) => {
+        return ORDER_MESES.indexOf(a) - ORDER_MESES.indexOf(b);
     });
-    
+    const mesContainer = document.getElementById('mesCheckboxes');
+    mesContainer.innerHTML = '';
+    meses.forEach(mes => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.innerHTML = `
+            <input type="checkbox" class="mes-checkbox" value="${mes}" checked>
+            <span>${mes}</span>
+        `;
+        mesContainer.appendChild(label);
+    });
+
+    // Sexos
+    const sexos = ['MASCULINO', 'FEMENINO', 'Sin datos'];
+    const sexoContainer = document.getElementById('sexoCheckboxes');
+    sexoContainer.innerHTML = '';
+    sexos.forEach(sexo => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.innerHTML = `
+            <input type="checkbox" class="sexo-checkbox" value="${sexo}" checked>
+            <span>${sexo}</span>
+        `;
+        sexoContainer.appendChild(label);
+    });
+
+    // Motivos
+    const motivos = [...new Set(allData.map(d => d.motivo))].sort();
+    const motivoContainer = document.getElementById('motivoCheckboxes');
+    motivoContainer.innerHTML = '';
+    motivos.forEach(motivo => {
+        if (motivo === 'Sin datos' || motivo === '') return;
+        const label = document.createElement('label');
+        label.className = 'checkbox-label';
+        label.innerHTML = `
+            <input type="checkbox" class="motivo-checkbox" value="${motivo}" checked>
+            <span>${motivo}</span>
+        `;
+        motivoContainer.appendChild(label);
+    });
+}
+
+function setupEventListeners() {
+    document.querySelectorAll('.mes-checkbox, .sexo-checkbox, .motivo-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateDashboard);
+    });
+
     document.getElementById('resetFilters').addEventListener('click', resetFilters);
-    document.getElementById('selectAllModulos').addEventListener('click', function() {
-        document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.checked = true);
-        updateDashboard();
-    });
-    document.getElementById('deselectAllModulos').addEventListener('click', function() {
-        document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.checked = false);
-        updateDashboard();
-    });
+    
     document.getElementById('selectAllMeses').addEventListener('click', function() {
         document.querySelectorAll('.mes-checkbox').forEach(cb => cb.checked = true);
         updateDashboard();
@@ -46,297 +100,293 @@ document.addEventListener('DOMContentLoaded', function() {
         updateDashboard();
     });
     
-    // Inicializar
-    updateDashboard();
-});
-
-function populateModuloFilter() {
-    const modulos = [...new Set(allData.map(d => d.modulo))].sort();
-    const container = document.getElementById('moduloCheckboxes');
-    container.innerHTML = '';
-    modulos.forEach(modulo => {
-        if (modulo === 'Gine') return;
-        const label = document.createElement('label');
-        label.className = 'checkbox-label';
-        label.innerHTML = `
-            <input type="checkbox" class="modulo-checkbox" value="${modulo}" checked>
-            <span>${modulo}</span>
-        `;
-        container.appendChild(label);
+    document.getElementById('selectAllSexos').addEventListener('click', function() {
+        document.querySelectorAll('.sexo-checkbox').forEach(cb => cb.checked = true);
+        updateDashboard();
     });
-}
-
-function populateMesFilter() {
-    const meses = ['MAYO', 'JUNIO', 'JULIO'];
-    const container = document.getElementById('mesCheckboxes');
-    container.innerHTML = '';
-    meses.forEach(mes => {
-        const label = document.createElement('label');
-        label.className = 'checkbox-label';
-        label.innerHTML = `
-            <input type="checkbox" class="mes-checkbox" value="${mes}" checked>
-            <span>${mes}</span>
-        `;
-        container.appendChild(label);
+    document.getElementById('deselectAllSexos').addEventListener('click', function() {
+        document.querySelectorAll('.sexo-checkbox').forEach(cb => cb.checked = false);
+        updateDashboard();
     });
-}
-
-function getSelectedModulos() {
-    return Array.from(document.querySelectorAll('.modulo-checkbox:checked')).map(cb => cb.value);
+    
+    document.getElementById('selectAllMotivos').addEventListener('click', function() {
+        document.querySelectorAll('.motivo-checkbox').forEach(cb => cb.checked = true);
+        updateDashboard();
+    });
+    document.getElementById('deselectAllMotivos').addEventListener('click', function() {
+        document.querySelectorAll('.motivo-checkbox').forEach(cb => cb.checked = false);
+        updateDashboard();
+    });
 }
 
 function getSelectedMeses() {
     return Array.from(document.querySelectorAll('.mes-checkbox:checked')).map(cb => cb.value);
 }
 
+function getSelectedSexos() {
+    return Array.from(document.querySelectorAll('.sexo-checkbox:checked')).map(cb => cb.value);
+}
+
+function getSelectedMotivos() {
+    return Array.from(document.querySelectorAll('.motivo-checkbox:checked')).map(cb => cb.value);
+}
+
 function updateDashboard() {
-    const selectedModulos = getSelectedModulos();
     const selectedMeses = getSelectedMeses();
-    const diaMax = parseInt(document.getElementById('diaFilter').value);
-    
+    const selectedSexos = getSelectedSexos();
+    const selectedMotivos = getSelectedMotivos();
+
     filteredData = allData.filter(d => {
         let match = true;
-        if (selectedModulos.length > 0) match = match && selectedModulos.includes(d.modulo);
         if (selectedMeses.length > 0) match = match && selectedMeses.includes(d.mes);
-        if (diaMax < 31) match = match && d.dia <= diaMax;
+        if (selectedSexos.length > 0) match = match && selectedSexos.includes(d.sexo);
+        if (selectedMotivos.length > 0) match = match && selectedMotivos.includes(d.motivo);
         return match;
     });
-    
+
     updateKPIs();
     updateCharts();
     updateTable();
 }
 
 function updateKPIs() {
-    const total = filteredData.reduce((sum, d) => sum + d.total, 0);
-    const promedio = filteredData.length > 0 ? Math.round(total / filteredData.length) : 0;
-    const rendimientoPromedio = filteredData.length > 0 ? 
-        Math.round(filteredData.reduce((sum, d) => sum + d.rendimiento, 0) / filteredData.length) : 0;
+    const total = filteredData.length;
+    const edades = filteredData.map(d => d.edad).filter(e => e > 0 && e < 120);
+    const edadProm = edades.length > 0 ? Math.round(edades.reduce((a, b) => a + b, 0) / edades.length) : 0;
     
+    // === MEDIA CONDICIONAL: Solo considerar casos > 0 ===
+    const vniData = filteredData.filter(d => d.diasVNI > 0);
+    const vniProm = vniData.length > 0 ? Math.round(vniData.reduce((a, b) => a + b.diasVNI, 0) / vniData.length) : 0;
+    
+    const cnafData = filteredData.filter(d => d.diasCNAF > 0);
+    const cnafProm = cnafData.length > 0 ? Math.round(cnafData.reduce((a, b) => a + b.diasCNAF, 0) / cnafData.length) : 0;
+    
+    const masculino = filteredData.filter(d => d.sexo === 'MASCULINO').length;
+    const femenino = filteredData.filter(d => d.sexo === 'FEMENINO').length;
+
     document.getElementById('kpiTotal').textContent = total;
-    document.getElementById('kpiPromedio').textContent = promedio;
-    document.getElementById('kpiRendimiento').textContent = rendimientoPromedio + '%';
-    
-    // Mejor módulo
-    const modulosRendimiento = {};
-    filteredData.forEach(d => {
-        if (d.modulo === 'Gine') return;
-        if (!modulosRendimiento[d.modulo]) modulosRendimiento[d.modulo] = [];
-        modulosRendimiento[d.modulo].push(d.rendimiento);
-    });
-    
-    let mejorModulo = '-';
-    let mejorPromedio = -1;
-    for (const [modulo, rendimientos] of Object.entries(modulosRendimiento)) {
-        const promedioMod = rendimientos.reduce((a, b) => a + b, 0) / rendimientos.length;
-        if (promedioMod > mejorPromedio) {
-            mejorPromedio = promedioMod;
-            mejorModulo = modulo;
-        }
-    }
-    document.getElementById('kpiMejorModulo').textContent = mejorModulo + (mejorPromedio > 0 ? ' (' + Math.round(mejorPromedio) + '%)' : '');
+    document.getElementById('kpiEdad').textContent = edadProm;
+    document.getElementById('kpiVNI').textContent = vniProm + (vniData.length > 0 ? ' (n=' + vniData.length + ')' : '');
+    document.getElementById('kpiCNAF').textContent = cnafProm + (cnafData.length > 0 ? ' (n=' + cnafData.length + ')' : '');
+    document.getElementById('kpiMasculino').textContent = masculino;
+    document.getElementById('kpiFemenino').textContent = femenino;
 }
 
 function updateCharts() {
     // Destruir gráficos anteriores
-    if (chartEvolucion) { chartEvolucion.destroy(); chartEvolucion = null; }
-    if (chartGravedad) { chartGravedad.destroy(); chartGravedad = null; }
-    if (chartRendimiento) { chartRendimiento.destroy(); chartRendimiento = null; }
-    
-    // Gráfico 1: Evolución
-    const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
-    const totalesPorDia = dias.map(dia => 
-        filteredData.filter(d => d.dia === dia).reduce((sum, d) => sum + d.total, 0)
-    );
-    
-    chartEvolucion = new Chart(document.getElementById('chartEvolucion'), {
-        type: 'line',
+    if (chartPacientesMes) { chartPacientesMes.destroy(); chartPacientesMes = null; }
+    if (chartSexo) { chartSexo.destroy(); chartSexo = null; }
+    if (chartMotivos) { chartMotivos.destroy(); chartMotivos = null; }
+    if (chartEdades) { chartEdades.destroy(); chartEdades = null; }
+    if (chartDiasPromedio) { chartDiasPromedio.destroy(); chartDiasPromedio = null; }
+
+    // Obtener meses disponibles y ordenarlos cronológicamente
+    const mesesDisponibles = [...new Set(filteredData.map(d => d.mes))];
+    const meses = ORDER_MESES.filter(m => mesesDisponibles.includes(m));
+
+    // 1. Pacientes por Mes (ordenado cronológicamente)
+    const pacientesPorMes = meses.map(mes => filteredData.filter(d => d.mes === mes).length);
+
+    chartPacientesMes = new Chart(document.getElementById('chartPacientesMes'), {
+        type: 'bar',
         data: {
-            labels: dias,
+            labels: meses,
             datasets: [{
-                label: 'Total Atenciones',
-                data: totalesPorDia,
+                label: 'N° Pacientes',
+                data: pacientesPorMes,
+                backgroundColor: 'rgba(102, 126, 234, 0.7)',
                 borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.15)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 4
+                borderWidth: 2,
+                borderRadius: 6
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: true, position: 'top' } },
-            scales: { y: { beginAtZero: true, min: 0 } }
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
     });
-    
-    // Gráfico 2: Gravedad
-    const leve = filteredData.reduce((sum, d) => sum + d.leve, 0);
-    const mod = filteredData.reduce((sum, d) => sum + d.mod, 0);
-    const sev = filteredData.reduce((sum, d) => sum + d.sev, 0);
-    
-    chartGravedad = new Chart(document.getElementById('chartGravedad'), {
+
+    // 2. Distribución por Sexo
+    const masculino = filteredData.filter(d => d.sexo === 'MASCULINO').length;
+    const femenino = filteredData.filter(d => d.sexo === 'FEMENINO').length;
+    const sinDatosSexo = filteredData.filter(d => d.sexo === 'Sin datos').length;
+
+    chartSexo = new Chart(document.getElementById('chartSexo'), {
         type: 'doughnut',
         data: {
-            labels: ['🟢 Leve', '🟡 Moderado', '🔴 Severo'],
+            labels: ['MASCULINO', 'FEMENINO', 'Sin datos'],
             datasets: [{
-                data: [leve, mod, sev],
-                backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
+                data: [masculino, femenino, sinDatosSexo],
+                backgroundColor: ['#4299e1', '#ed64a6', '#a0aec0'],
                 borderWidth: 3,
                 borderColor: 'white'
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: { legend: { position: 'bottom' } },
-            cutout: '60%'
+            cutout: '55%'
         }
     });
-    
-    // Gráfico 3: Rendimiento
-    const selectedModulos = getSelectedModulos();
-    const selectedMeses = getSelectedMeses();
-    const meses = ['MAYO', 'JUNIO', 'JULIO'];
-    
-    if (selectedModulos.length === 1) {
-        // Un módulo: mostrar por mes + promedio
-        const modulo = selectedModulos[0];
-        const datosModulo = filteredData.filter(d => d.modulo === modulo);
-        
-        const promediosMensuales = meses.map(mes => {
-            const dataMes = datosModulo.filter(d => d.mes === mes);
-            return dataMes.length > 0 ? Math.round(dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length) : 0;
-        });
-        
-        const promedioTotal = datosModulo.length > 0 ? 
-            Math.round(datosModulo.reduce((sum, d) => sum + d.rendimiento, 0) / datosModulo.length) : 0;
-        
-        let labels = meses;
-        let data = promediosMensuales;
-        if (selectedMeses.length > 0 && selectedMeses.length < 3) {
-            labels = selectedMeses;
-            data = selectedMeses.map(mes => promediosMensuales[meses.indexOf(mes)]);
+
+    // 3. Motivos de Conexión
+    const motivos = [...new Set(filteredData.map(d => d.motivo))].filter(m => m !== 'Sin datos' && m !== '');
+    const motivosCount = motivos.map(m => filteredData.filter(d => d.motivo === m).length);
+    const colores = ['#667eea', '#f6ad55', '#68d391', '#fc8181', '#9f7aea', '#ed8936', '#4299e1', '#ed64a6'];
+
+    chartMotivos = new Chart(document.getElementById('chartMotivos'), {
+        type: 'bar',
+        data: {
+            labels: motivos,
+            datasets: [{
+                label: 'N° Pacientes',
+                data: motivosCount,
+                backgroundColor: motivosCount.map((_, i) => colores[i % colores.length]),
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                x: { ticks: { maxRotation: 45, minRotation: 30 } }
+            }
         }
-        
-        chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Rendimiento Mensual',
-                        data: data,
-                        backgroundColor: ['#f6ad55', '#68d391', '#fc8181'],
-                        borderRadius: 8,
-                        barPercentage: 0.6
-                    },
-                    {
-                        label: 'Promedio Total: ' + promedioTotal + '%',
-                        data: labels.map(() => promedioTotal),
-                        type: 'line',
-                        borderColor: '#2d3748',
-                        borderWidth: 3,
-                        borderDash: [8, 4],
-                        pointRadius: 5,
-                        pointBackgroundColor: '#2d3748',
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: { 
-                    legend: { position: 'top' },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                if (context.dataset.label.includes('Promedio')) {
-                                    return context.dataset.label;
-                                }
-                                return context.dataset.label + ': ' + context.parsed.y + '%';
-                            }
+    });
+
+    // 4. Distribución de Edades (Histograma)
+    const edades = filteredData.map(d => d.edad).filter(e => e > 0 && e < 120);
+    const bins = [0, 18, 30, 40, 50, 60, 70, 80, 90, 100];
+    const labels = ['0-17', '18-29', '30-39', '40-49', '50-59', '60-69', '70-79', '80-89', '90-100'];
+    const counts = bins.slice(0, -1).map((bin, i) => {
+        return edades.filter(e => e >= bin && e < bins[i + 1]).length;
+    });
+
+    chartEdades = new Chart(document.getElementById('chartEdades'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'N° Pacientes',
+                data: counts,
+                backgroundColor: 'rgba(246, 173, 85, 0.7)',
+                borderColor: '#f6ad55',
+                borderWidth: 2,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // 5. Promedio de Días VNI y CNAF por Mes (MEDIA CONDICIONAL)
+    const vniPorMes = meses.map(mes => {
+        const dataMes = filteredData.filter(d => d.mes === mes && d.diasVNI > 0);
+        return dataMes.length > 0 ? Math.round(dataMes.reduce((a, b) => a + b.diasVNI, 0) / dataMes.length) : 0;
+    });
+    
+    const cnafPorMes = meses.map(mes => {
+        const dataMes = filteredData.filter(d => d.mes === mes && d.diasCNAF > 0);
+        return dataMes.length > 0 ? Math.round(dataMes.reduce((a, b) => a + b.diasCNAF, 0) / dataMes.length) : 0;
+    });
+
+    // Contar cuántos casos > 0 por mes para mostrar en tooltip
+    const vniCountPorMes = meses.map(mes => {
+        return filteredData.filter(d => d.mes === mes && d.diasVNI > 0).length;
+    });
+    
+    const cnafCountPorMes = meses.map(mes => {
+        return filteredData.filter(d => d.mes === mes && d.diasCNAF > 0).length;
+    });
+
+    chartDiasPromedio = new Chart(document.getElementById('chartDiasPromedio'), {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Prom. Días VNI',
+                    data: vniPorMes,
+                    backgroundColor: 'rgba(66, 153, 225, 0.7)',
+                    borderColor: '#4299e1',
+                    borderWidth: 2,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Prom. Días CNAF',
+                    data: cnafPorMes,
+                    backgroundColor: 'rgba(237, 137, 54, 0.7)',
+                    borderColor: '#ed8936',
+                    borderWidth: 2,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { 
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            const label = context.dataset.label || '';
+                            const value = context.parsed.y;
+                            const count = label.includes('VNI') ? vniCountPorMes[index] : cnafCountPorMes[index];
+                            return label + ': ' + value + ' días (n=' + count + ')';
                         }
                     }
-                },
-                scales: {
-                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
                 }
-            }
-        });
-    } else {
-        // Múltiples módulos: barras agrupadas
-        const datasets = [];
-        const colores = ['#667eea', '#f6ad55', '#68d391', '#fc8181', '#9f7aea', '#ed8936'];
-        
-        let labels = meses;
-        if (selectedMeses.length > 0 && selectedMeses.length < 3) {
-            labels = selectedMeses;
+            },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
-        
-        selectedModulos.forEach((modulo, index) => {
-            const dataPorMes = labels.map(mes => {
-                const dataMes = filteredData.filter(d => d.modulo === modulo && d.mes === mes);
-                return dataMes.length > 0 ? Math.round(dataMes.reduce((sum, d) => sum + d.rendimiento, 0) / dataMes.length) : 0;
-            });
-            const promedio = dataPorMes.reduce((a, b) => a + b, 0) / dataPorMes.length;
-            datasets.push({
-                label: modulo + ' (Prom: ' + Math.round(promedio) + '%)',
-                data: dataPorMes,
-                backgroundColor: colores[index % colores.length],
-                borderRadius: 4,
-                barPercentage: 0.7
-            });
-        });
-        
-        chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
-            type: 'bar',
-            data: { labels: labels, datasets: datasets },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'top' } },
-                scales: {
-                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
-                }
-            }
-        });
-    }
+    });
 }
 
 function updateTable() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
-    
+
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#a0aec0;">📭 No hay datos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#a0aec0;">📭 No hay datos para los filtros seleccionados</td></tr>';
         return;
     }
-    
-    const sorted = [...filteredData].sort((a, b) => {
-        if (a.mes !== b.mes) return a.mes.localeCompare(b.mes);
-        return a.dia - b.dia;
+
+    // Ordenar por mes (cronológico) y luego por edad
+    const sortedData = [...filteredData].sort((a, b) => {
+        const mesA = ORDER_MESES.indexOf(a.mes);
+        const mesB = ORDER_MESES.indexOf(b.mes);
+        if (mesA !== mesB) return mesA - mesB;
+        return a.edad - b.edad;
     });
-    
-    sorted.forEach(d => {
+
+    sortedData.slice(0, 100).forEach(d => {
         const tr = document.createElement('tr');
+        const mesShort = d.mes.split(' ')[0].toLowerCase();
         tr.innerHTML = `
-            <td><strong>${d.dia}</strong></td>
-            <td><span class="badge badge-${d.mes.toLowerCase()}">${d.mes}</span></td>
-            <td>${d.modulo}</td>
-            <td><strong>${d.total}</strong></td>
-            <td>${d.leve}</td>
-            <td>${d.mod}</td>
-            <td>${d.sev}</td>
-            <td style="color:${d.rendimiento >= 80 ? '#48bb78' : d.rendimiento >= 60 ? '#ed8936' : '#fc8181'};font-weight:600;">${d.rendimiento}%</td>
+            <td><span class="badge badge-${mesShort}">${d.mes}</span></td>
+            <td>${d.edad}</td>
+            <td>${d.sexo}</td>
+            <td>${d.motivo}</td>
+            <td>${d.diasVNI}</td>
+            <td>${d.diasCNAF}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
 function resetFilters() {
-    document.querySelectorAll('.modulo-checkbox').forEach(cb => cb.checked = true);
-    document.querySelectorAll('.mes-checkbox').forEach(cb => cb.checked = true);
-    document.getElementById('diaFilter').value = '31';
-    document.getElementById('diaValue').textContent = '31';
+    document.querySelectorAll('.mes-checkbox, .sexo-checkbox, .motivo-checkbox').forEach(cb => cb.checked = true);
     updateDashboard();
 }
