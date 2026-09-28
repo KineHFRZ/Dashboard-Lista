@@ -67,7 +67,7 @@ function populateModuloFilter() {
 }
 
 function populateMesFilter() {
-    const meses = ['MAYO', 'JUNIO', 'JULIO'];
+    const meses = ['MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE'];
     const container = document.getElementById('mesCheckboxes');
     container.innerHTML = '';
     meses.forEach(mes => {
