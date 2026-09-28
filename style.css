@@ -238,7 +238,13 @@ tbody tr:hover {
 .badge-julio {
     background: #fc8181;
 }
+.badge-agosto {
+    background: #63b3ed;
+}
 
+.badge-septiembre {
+    background: #b794f4;
+}
 /* Responsive */
 @media (max-width: 1024px) {
     .kpi-grid {
