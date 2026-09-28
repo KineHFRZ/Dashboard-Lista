@@ -1,4 +1,4 @@
-// data.js - DATOS COMPLETOS DE MAYO, JUNIO Y JULIO
+// data.js - DATOS COMPLETOS DE MAYO, JUNIO, JULIO, AGOSTO Y SEPTIEMBRE
 const data = [
   // ============= MAYO =============
   { dia: 1, mes: 'MAYO', modulo: 'UTI 5to', total: 30, leve: 22, mod: 0, sev: 0, rendimiento: 93 },
@@ -313,18 +313,6 @@ const data = [
   { dia: 31, mes: 'JUNIO', modulo: 'Medicina C', total: 0, leve: 0, mod: 0, sev: 0, rendimiento: 0 },
   { dia: 31, mes: 'JUNIO', modulo: 'Medicina D', total: 0, leve: 0, mod: 0, sev: 0, rendimiento: 0 },
   { dia: 31, mes: 'JUNIO', modulo: 'Medicina E', total: 0, leve: 0, mod: 0, sev: 0, rendimiento: 0 },
-
-// data.js - DATOS COMPLETOS DE MAYO, JUNIO, JULIO, AGOSTO Y SEPTIEMBRE
-const data = [
-  // =====================================================
-  // ⚠️ MAYO y JUNIO — PEGA AQUÍ TUS DATOS ORIGINALES
-  // (los que ya tenías en tu data.js antes de esta actualización)
-  // =====================================================
-  // { dia: 1, mes: 'MAYO', modulo: 'UTI 5to', total: 30, leve: 22, mod: 0, sev: 0, rendimiento: 93 },
-  // ... etc (todo tu bloque original de Mayo)
-  // { dia: 1, mes: 'JUNIO', modulo: 'UTI 5to', total: 22, leve: 17, mod: 0, sev: 0, rendimiento: 1 },
-  // ... etc (todo tu bloque original de Junio)
-  // =====================================================
 
   // ============= JULIO =============
   { dia: 1, mes: 'JULIO', modulo: 'UTI 5to', total: 26, leve: 15, mod: 2, sev: 0, rendimiento: 85 },
