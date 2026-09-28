@@ -197,7 +197,7 @@ function updateCharts() {
     // Gráfico 3: Rendimiento
     const selectedModulos = getSelectedModulos();
     const selectedMeses = getSelectedMeses();
-    const meses = ['MAYO', 'JUNIO', 'JULIO'];
+    const meses = ['MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE'];
     
     if (selectedModulos.length === 1) {
         // Un módulo: mostrar por mes + promedio
