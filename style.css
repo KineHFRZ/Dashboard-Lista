@@ -9,6 +9,7 @@
 body {
     background: #f0f2f5;
     padding: 20px;
+    color: #2d3748;
 }
 
 .dashboard {
@@ -26,15 +27,8 @@ body {
     box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
 }
 
-.header h1 {
-    font-size: 2em;
-    margin-bottom: 8px;
-}
-
-.header p {
-    opacity: 0.9;
-    font-size: 1em;
-}
+.header h1 { font-size: 1.9em; margin-bottom: 8px; }
+.header p { opacity: 0.9; font-size: 0.95em; }
 
 /* ================= FILTROS ================= */
 .filters {
@@ -58,19 +52,17 @@ body {
 
 .filter-group > label {
     font-weight: 600;
-    color: #333;
+    color: #2d3748;
     font-size: 0.9em;
 }
 
-.filter-multiple {
-    flex: 1 1 300px;
-}
+.filter-multiple { flex: 1 1 300px; }
 
 .checkbox-group {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 14px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     background: #f7fafc;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
@@ -120,11 +112,7 @@ body {
     accent-color: #667eea;
 }
 
-#diaValue {
-    font-weight: 600;
-    color: #667eea;
-    font-size: 0.95em;
-}
+#diaValue { font-weight: 600; color: #667eea; font-size: 0.95em; }
 
 #resetFilters {
     background: #667eea;
@@ -183,27 +171,16 @@ body {
     line-height: 1.1;
 }
 
-.kpi-card p#kpiMejorModulo {
-    font-size: 1.1em;
-}
+.kpi-card p#kpiMejorModulo { font-size: 1.05em; }
 
-/* KPIs ventilatorios */
 .kpi-grid-secondary {
     grid-template-columns: repeat(4, 1fr);
     margin-top: -8px;
 }
 
-.kpi-grid-secondary .kpi-card {
-    padding: 12px 14px;
-}
-
-.kpi-grid-secondary .kpi-card h3 {
-    font-size: 0.68em;
-}
-
-.kpi-grid-secondary .kpi-card p {
-    font-size: 1.4em;
-}
+.kpi-grid-secondary .kpi-card { padding: 12px 14px; }
+.kpi-grid-secondary .kpi-card h3 { font-size: 0.68em; }
+.kpi-grid-secondary .kpi-card p { font-size: 1.4em; }
 
 .kpi-o2   { border-top: 4px solid #3498DB; }
 .kpi-cnaf { border-top: 4px solid #1ABC9C; }
@@ -223,11 +200,11 @@ body {
     padding: 18px;
     border-radius: 12px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
 }
 
-.chart-card.full-width {
-    grid-column: 1 / -1;
-}
+.chart-card.full-width { grid-column: 1 / -1; }
 
 .chart-card h2 {
     font-size: 1em;
@@ -241,10 +218,16 @@ body {
     margin-bottom: 10px;
 }
 
-.chart-card canvas {
+/* El wrapper del canvas es CLAVE para que Chart.js respete la altura */
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 260px;
+}
+
+.chart-wrapper canvas {
     width: 100% !important;
-    height: auto !important;
-    max-height: 260px !important;
+    height: 100% !important;
 }
 
 /* ================= TABLAS ================= */
@@ -264,7 +247,10 @@ body {
 
 .table-container {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 520px;
     border-radius: 8px;
+    border: 1px solid #e2e8f0;
 }
 
 table {
@@ -278,6 +264,7 @@ thead {
     color: white;
     position: sticky;
     top: 0;
+    z-index: 2;
 }
 
 th, td {
@@ -287,16 +274,14 @@ th, td {
     white-space: nowrap;
 }
 
-th {
-    font-weight: 600;
-    font-size: 0.85em;
-}
+th { font-weight: 600; font-size: 0.85em; }
 
-tbody tr:hover {
-    background: #f7fafc;
-}
+tbody tr:hover { background: #f7fafc; }
 
-/* Badges de meses */
+tbody tr:nth-child(even) { background: #fafbfc; }
+tbody tr:nth-child(even):hover { background: #f7fafc; }
+
+/* ================= BADGES ================= */
 .badge {
     display: inline-block;
     padding: 2px 9px;
@@ -320,17 +305,15 @@ tbody tr:hover {
 /* ================= RESPONSIVE ================= */
 @media (max-width: 1024px) {
     .kpi-grid,
-    .kpi-grid-secondary {
-        grid-template-columns: repeat(2, 1fr);
-    }
+    .kpi-grid-secondary { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
     body { padding: 10px; }
 
     .header { padding: 18px 20px; }
-    .header h1 { font-size: 1.5em; }
-    .header p { font-size: 0.9em; }
+    .header h1 { font-size: 1.4em; }
+    .header p { font-size: 0.85em; }
 
     .filters {
         flex-direction: column;
@@ -340,11 +323,7 @@ tbody tr:hover {
     }
 
     .filter-group { min-width: 0; }
-
-    #resetFilters {
-        margin-left: 0;
-        width: 100%;
-    }
+    #resetFilters { margin-left: 0; width: 100%; }
 
     .kpi-grid,
     .kpi-grid-secondary {
@@ -357,31 +336,24 @@ tbody tr:hover {
     .kpi-grid-secondary .kpi-card p { font-size: 1.15em; }
     .kpi-card p#kpiMejorModulo { font-size: 0.9em; }
 
-    .charts-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-
+    .charts-grid { grid-template-columns: 1fr; gap: 15px; }
     .chart-card { padding: 14px; }
-    .chart-card canvas { max-height: 210px !important; }
+    .chart-wrapper { height: 220px; }
 
     .table-section { padding: 14px; }
     table { font-size: 0.72em; }
     th, td { padding: 6px 8px; }
+    .table-container { max-height: 400px; }
 }
 
 @media (max-width: 480px) {
     .kpi-grid,
-    .kpi-grid-secondary {
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-    }
-
+    .kpi-grid-secondary { grid-template-columns: 1fr 1fr; gap: 8px; }
     .kpi-card { padding: 10px; }
     .kpi-card h3 { font-size: 0.62em; }
     .kpi-card p { font-size: 1.15em; }
     .kpi-grid-secondary .kpi-card p { font-size: 1em; }
-
-    .header h1 { font-size: 1.2em; }
-    .header p { font-size: 0.8em; }
+    .header h1 { font-size: 1.15em; }
+    .header p { font-size: 0.78em; }
+    .chart-wrapper { height: 200px; }
 }
