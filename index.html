@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard Clínico</title>
+    <title>Dashboard Clínico 2026</title>
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -12,7 +12,7 @@
         <!-- HEADER -->
         <header class="header">
             <h1>🏥 Dashboard Atenciones Bloque Médico Quirúrgico</h1>
-            <p>Consolidado: MAYO - JUNIO - JULIO - AGOSTO - SEPTIEMBRE</p>
+            <p>Consolidado: ENERO – SEPTIEMBRE 2026</p>
         </header>
 
         <!-- FILTROS -->
@@ -51,6 +51,14 @@
             <div class="kpi-card"><h3>Mejor Módulo</h3><p id="kpiMejorModulo">-</p></div>
         </section>
 
+        <!-- KPIs VENTILATORIOS -->
+        <section class="kpi-grid kpi-grid-secondary">
+            <div class="kpi-card kpi-o2"><h3>O2</h3><p id="kpiO2">0</p></div>
+            <div class="kpi-card kpi-cnaf"><h3>CNAF</h3><p id="kpiCNAF">0</p></div>
+            <div class="kpi-card kpi-tqt"><h3>TQT</h3><p id="kpiTQT">0</p></div>
+            <div class="kpi-card kpi-vm"><h3>VM</h3><p id="kpiVM">0</p></div>
+        </section>
+
         <!-- GRÁFICOS -->
         <section class="charts-grid">
             <div class="chart-card">
@@ -61,6 +69,14 @@
                 <h2>📊 Distribución por Gravedad</h2>
                 <canvas id="chartGravedad"></canvas>
             </div>
+            <div class="chart-card">
+                <h2>🫁 Asistencia Ventilatoria</h2>
+                <canvas id="chartVentilatorio"></canvas>
+            </div>
+            <div class="chart-card">
+                <h2>🩺 Frecuencia de Diagnósticos</h2>
+                <canvas id="chartDiagnosticos"></canvas>
+            </div>
             <div class="chart-card full-width">
                 <h2>🎯 Rendimiento por Módulo</h2>
                 <p>💡 Selecciona un módulo para ver su evolución mensual, o varios para comparar</p>
@@ -68,7 +84,7 @@
             </div>
         </section>
 
-        <!-- TABLA -->
+        <!-- TABLA PRINCIPAL -->
         <section class="table-section">
             <h2>📋 Detalle de Datos</h2>
             <div class="table-container">
@@ -79,13 +95,36 @@
                             <th>Mes</th>
                             <th>Módulo</th>
                             <th>Total</th>
+                            <th>Ingreso</th>
                             <th>Leve</th>
                             <th>Moderado</th>
                             <th>Severo</th>
+                            <th>O2</th>
+                            <th>CNAF</th>
+                            <th>TQT</th>
+                            <th>PLT</th>
+                            <th>Drenajes</th>
+                            <th>VM</th>
                             <th>Rendimiento %</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TABLA DIAGNÓSTICOS -->
+        <section class="table-section">
+            <h2>🩺 Frecuencia de Diagnósticos (según meses seleccionados)</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Diagnóstico</th>
+                            <th>Frecuencia</th>
+                        </tr>
+                    </thead>
+                    <tbody id="diagnosticosBody"></tbody>
                 </table>
             </div>
         </section>
