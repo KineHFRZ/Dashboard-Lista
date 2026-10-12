@@ -9,7 +9,6 @@
 </head>
 <body>
     <div class="dashboard">
-        <!-- HEADER -->
         <header class="header">
             <h1>🏥 Dashboard Atenciones Bloque Médico Quirúrgico</h1>
             <p>Consolidado: ENERO – SEPTIEMBRE 2026</p>
@@ -43,7 +42,7 @@
             <button id="resetFilters">🔄 Resetear Filtros</button>
         </section>
 
-        <!-- KPIs -->
+        <!-- KPIs PRINCIPALES -->
         <section class="kpi-grid">
             <div class="kpi-card"><h3>Total Atenciones</h3><p id="kpiTotal">0</p></div>
             <div class="kpi-card"><h3>Promedio Diario</h3><p id="kpiPromedio">0</p></div>
@@ -63,24 +62,24 @@
         <section class="charts-grid">
             <div class="chart-card">
                 <h2>📈 Evolución de Atenciones por Día</h2>
-                <canvas id="chartEvolucion"></canvas>
+                <div class="chart-wrapper"><canvas id="chartEvolucion"></canvas></div>
             </div>
             <div class="chart-card">
                 <h2>📊 Distribución por Gravedad</h2>
-                <canvas id="chartGravedad"></canvas>
+                <div class="chart-wrapper"><canvas id="chartGravedad"></canvas></div>
             </div>
             <div class="chart-card">
-                <h2>🫁 Asistencia Ventilatoria</h2>
-                <canvas id="chartVentilatorio"></canvas>
+                <h2>🫁 Asistencia Ventilatoria por Mes</h2>
+                <div class="chart-wrapper"><canvas id="chartVentilatorio"></canvas></div>
             </div>
             <div class="chart-card">
-                <h2>🩺 Frecuencia de Diagnósticos</h2>
-                <canvas id="chartDiagnosticos"></canvas>
+                <h2>🩺 Frecuencia de Diagnósticos por Mes</h2>
+                <div class="chart-wrapper"><canvas id="chartDiagnosticos"></canvas></div>
             </div>
             <div class="chart-card full-width">
                 <h2>🎯 Rendimiento por Módulo</h2>
                 <p>💡 Selecciona un módulo para ver su evolución mensual, o varios para comparar</p>
-                <canvas id="chartRendimiento"></canvas>
+                <div class="chart-wrapper"><canvas id="chartRendimiento"></canvas></div>
             </div>
         </section>
 
@@ -115,13 +114,22 @@
 
         <!-- TABLA DIAGNÓSTICOS -->
         <section class="table-section">
-            <h2>🩺 Frecuencia de Diagnósticos (según meses seleccionados)</h2>
+            <h2>🩺 Frecuencia de Diagnósticos (por mes seleccionado)</h2>
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
                             <th>Diagnóstico</th>
-                            <th>Frecuencia</th>
+                            <th>Enero</th>
+                            <th>Febrero</th>
+                            <th>Marzo</th>
+                            <th>Abril</th>
+                            <th>Mayo</th>
+                            <th>Junio</th>
+                            <th>Julio</th>
+                            <th>Agosto</th>
+                            <th>Septiembre</th>
+                            <th>Total</th>
                         </tr>
                     </thead>
                     <tbody id="diagnosticosBody"></tbody>
