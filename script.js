@@ -1,4 +1,4 @@
-// script.js — Versión 2026 (ene-sep) con O2/CNAF/TQT/VM + Diagnósticos
+// script.js — Versión 2026 (ene-sep) con O2/CNAF/TQT/VM + Diagnósticos por mes
 let allData = [];
 let filteredData = [];
 
@@ -12,7 +12,7 @@ const MESES_ORDEN = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','A
 
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof data === 'undefined') {
-        document.body.innerHTML = '<h1 style="color:red;text-align:center;padding:50px;">❌ Error: No se encontraron datos. Verifica que data.js esté cargado.</h1>';
+        document.body.innerHTML = '<h1 style="color:red;text-align:center;padding:50px;">❌ Error: No se encontraron datos.</h1>';
         return;
     }
 
@@ -134,9 +134,9 @@ function updateKPIs() {
             mejorModulo = modulo;
         }
     }
-    document.getElementById('kpiMejorModulo').textContent = mejorModulo + (mejorPromedio > 0 ? ' (' + Math.round(mejorPromedio) + '%)' : '');
+    document.getElementById('kpiMejorModulo').textContent =
+        mejorModulo + (mejorPromedio > 0 ? ' (' + Math.round(mejorPromedio) + '%)' : '');
 
-    // KPIs ventilación
     const o2   = filteredData.reduce((s,d) => s + (d.o2   || 0), 0);
     const cnaf = filteredData.reduce((s,d) => s + (d.cnaf || 0), 0);
     const tqt  = filteredData.reduce((s,d) => s + (d.tqt  || 0), 0);
@@ -148,13 +148,13 @@ function updateKPIs() {
 }
 
 function updateCharts() {
-    if (chartEvolucion)   { chartEvolucion.destroy();   chartEvolucion = null; }
-    if (chartGravedad)    { chartGravedad.destroy();    chartGravedad = null; }
-    if (chartVentilatorio){ chartVentilatorio.destroy();chartVentilatorio = null; }
-    if (chartDiagnosticos){ chartDiagnosticos.destroy();chartDiagnosticos = null; }
-    if (chartRendimiento) { chartRendimiento.destroy(); chartRendimiento = null; }
+    if (chartEvolucion)    { chartEvolucion.destroy();    chartEvolucion = null; }
+    if (chartGravedad)     { chartGravedad.destroy();     chartGravedad = null; }
+    if (chartVentilatorio) { chartVentilatorio.destroy(); chartVentilatorio = null; }
+    if (chartDiagnosticos) { chartDiagnosticos.destroy(); chartDiagnosticos = null; }
+    if (chartRendimiento)  { chartRendimiento.destroy();  chartRendimiento = null; }
 
-    // Gráfico 1: Evolución
+    // ========== 1. EVOLUCIÓN ==========
     const dias = [...new Set(filteredData.map(d => d.dia))].sort((a, b) => a - b);
     const totalesPorDia = dias.map(dia =>
         filteredData.filter(d => d.dia === dia).reduce((sum, d) => sum + d.total, 0)
@@ -177,35 +177,48 @@ function updateCharts() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: true, position: 'top' } },
             scales: { y: { beginAtZero: true, min: 0 } }
         }
     });
 
-    // Gráfico 2: Gravedad
+    // ========== 2. GRAVEDAD (ahora barras horizontales para que se vea lo severo) ==========
     const leve = filteredData.reduce((s,d) => s + d.leve, 0);
     const mod  = filteredData.reduce((s,d) => s + d.mod, 0);
     const sev  = filteredData.reduce((s,d) => s + d.sev, 0);
 
     chartGravedad = new Chart(document.getElementById('chartGravedad'), {
-        type: 'doughnut',
+        type: 'bar',
         data: {
             labels: ['🟢 Leve', '🟡 Moderado', '🔴 Severo'],
             datasets: [{
+                label: 'Pacientes',
                 data: [leve, mod, sev],
                 backgroundColor: ['#48bb78', '#ed8936', '#fc8181'],
-                borderWidth: 3,
-                borderColor: 'white'
+                borderRadius: 8,
+                barPercentage: 0.55
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { position: 'bottom' } },
-            cutout: '60%'
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.label}: ${ctx.parsed.x}`
+                    }
+                }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { precision: 0 } }
+            }
         }
     });
 
-    // Gráfico 3: Ventilatorio (por mes)
+    // ========== 3. VENTILATORIO POR MES ==========
     const meses = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
     const o2PorMes   = meses.map(m => filteredData.filter(d => d.mes === m).reduce((s,d) => s + (d.o2||0), 0));
     const cnafPorMes = meses.map(m => filteredData.filter(d => d.mes === m).reduce((s,d) => s + (d.cnaf||0), 0));
@@ -225,53 +238,66 @@ function updateCharts() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { position: 'top' } },
             scales: { y: { beginAtZero: true } }
         }
     });
 
-    // Gráfico 4: Diagnósticos
-    const diagPorMes = {};
-    meses.forEach(m => {
+    // ========== 4. DIAGNÓSTICOS POR MES (stacked bar) ==========
+    const mesesActivos = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
+
+    // Recolectar todos los diagnósticos únicos
+    const todosDiag = new Set();
+    mesesActivos.forEach(m => {
         const d = (typeof diagnosticosPorMes !== 'undefined' && diagnosticosPorMes[m]) ? diagnosticosPorMes[m] : {};
-        Object.keys(d).forEach(k => {
-            if (!diagPorMes[k]) diagPorMes[k] = 0;
-            diagPorMes[k] += d[k];
-        });
+        Object.keys(d).forEach(k => todosDiag.add(k));
     });
-    const diagLabels = Object.keys(diagPorMes);
-    const diagValues = diagLabels.map(k => diagPorMes[k]);
+    const diagLabels = Array.from(todosDiag);
+
+    // Paleta de colores fija por diagnóstico
+    const paleta = ['#667eea','#f6ad55','#68d391','#fc8181','#9f7aea','#ed8936','#4299e1','#e53e3e','#38b2ac','#d53f8c'];
+
+    // Un dataset por diagnóstico, con los valores por mes
+    const datasetsDiag = diagLabels.map((diag, i) => ({
+        label: diag,
+        data: mesesActivos.map(m => (diagnosticosPorMes[m] && diagnosticosPorMes[m][diag]) || 0),
+        backgroundColor: paleta[i % paleta.length],
+        borderRadius: 4,
+        stack: 'stack1'
+    }));
 
     chartDiagnosticos = new Chart(document.getElementById('chartDiagnosticos'), {
         type: 'bar',
         data: {
-            labels: diagLabels,
-            datasets: [{
-                label: 'Frecuencia',
-                data: diagValues,
-                backgroundColor: ['#667eea','#f6ad55','#68d391','#fc8181','#9f7aea','#ed8936','#4299e1','#e53e3e'],
-                borderRadius: 6
-            }]
+            labels: mesesActivos,
+            datasets: datasetsDiag
         },
         options: {
             responsive: true,
-            indexAxis: 'y',
-            plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true } }
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            }
         }
     });
 
-    // Gráfico 5: Rendimiento
+    // ========== 5. RENDIMIENTO POR MÓDULO ==========
     const selectedModulos = getSelectedModulos();
-    let labels = meses;
-    if (selectedMeses.length > 0 && selectedMeses.length < 3) {
-        labels = selectedMeses;
-    }
+    let labelsRend = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
 
-    if (selectedModulos.length === 1) {
+    if (selectedModulos.length === 0) {
+        chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
+            type: 'bar',
+            data: { labels: ['Sin módulos'], datasets: [] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+    } else if (selectedModulos.length === 1) {
         const modulo = selectedModulos[0];
         const datosModulo = filteredData.filter(d => d.modulo === modulo);
-        const promediosMensuales = labels.map(mes => {
+        const promediosMensuales = labelsRend.map(mes => {
             const dataMes = datosModulo.filter(d => d.mes === mes);
             return dataMes.length > 0 ? Math.round(dataMes.reduce((s,d) => s + d.rendimiento, 0) / dataMes.length) : 0;
         });
@@ -281,18 +307,18 @@ function updateCharts() {
         chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: labelsRend,
                 datasets: [
                     {
-                        label: 'Rendimiento Mensual',
+                        label: 'Rendimiento mensual (%)',
                         data: promediosMensuales,
-                        backgroundColor: ['#f6ad55','#68d391','#fc8181','#63b3ed','#b794f4'],
+                        backgroundColor: '#667eea',
                         borderRadius: 8,
                         barPercentage: 0.6
                     },
                     {
-                        label: 'Promedio Total: ' + promedioTotal + '%',
-                        data: labels.map(() => promedioTotal),
+                        label: 'Promedio total: ' + promedioTotal + '%',
+                        data: labelsRend.map(() => promedioTotal),
                         type: 'line',
                         borderColor: '#2d3748',
                         borderWidth: 3,
@@ -305,6 +331,7 @@ function updateCharts() {
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { position: 'top' } },
                 scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }
             }
@@ -313,13 +340,12 @@ function updateCharts() {
         const datasets = [];
         const colores = ['#667eea','#f6ad55','#68d391','#fc8181','#9f7aea','#ed8936'];
         selectedModulos.forEach((modulo, index) => {
-            const dataPorMes = labels.map(mes => {
+            const dataPorMes = labelsRend.map(mes => {
                 const dataMes = filteredData.filter(d => d.modulo === modulo && d.mes === mes);
                 return dataMes.length > 0 ? Math.round(dataMes.reduce((s,d) => s + d.rendimiento, 0) / dataMes.length) : 0;
             });
-            const promedio = dataPorMes.reduce((a,b) => a+b, 0) / dataPorMes.length;
             datasets.push({
-                label: modulo + ' (Prom: ' + Math.round(promedio) + '%)',
+                label: modulo,
                 data: dataPorMes,
                 backgroundColor: colores[index % colores.length],
                 borderRadius: 4,
@@ -329,9 +355,10 @@ function updateCharts() {
 
         chartRendimiento = new Chart(document.getElementById('chartRendimiento'), {
             type: 'bar',
-            data: { labels: labels, datasets: datasets },
+            data: { labels: labelsRend, datasets: datasets },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { position: 'top' } },
                 scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } }
             }
@@ -353,7 +380,11 @@ function updateTable() {
         return a.dia - b.dia;
     });
 
-    sorted.forEach(d => {
+    // Limitar la tabla a 500 filas por rendimiento (opcional)
+    const maxFilas = 500;
+    const mostrar = sorted.slice(0, maxFilas);
+
+    mostrar.forEach(d => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${d.dia}</strong></td>
@@ -374,6 +405,12 @@ function updateTable() {
         `;
         tbody.appendChild(tr);
     });
+
+    if (sorted.length > maxFilas) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="15" style="text-align:center;padding:12px;color:#718096;font-style:italic;">... mostrando las primeras ${maxFilas} filas de ${sorted.length} totales</td>`;
+        tbody.appendChild(tr);
+    }
 }
 
 function updateDiagnosticos() {
@@ -381,32 +418,48 @@ function updateDiagnosticos() {
     tbody.innerHTML = '';
 
     if (typeof diagnosticosPorMes === 'undefined') {
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;">Sin datos de diagnósticos.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;">Sin datos de diagnósticos.</td></tr>';
         return;
     }
 
-    const meses = getSelectedMeses();
-    const acumulado = {};
-    meses.forEach(m => {
-        const d = diagnosticosPorMes[m];
-        if (!d) return;
-        Object.keys(d).forEach(k => {
-            if (!acumulado[k]) acumulado[k] = 0;
-            acumulado[k] += d[k];
-        });
+    const mesesActivos = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
+
+    // Recolectar todos los diagnósticos
+    const todos = new Set();
+    mesesActivos.forEach(m => {
+        if (diagnosticosPorMes[m]) {
+            Object.keys(diagnosticosPorMes[m]).forEach(k => todos.add(k));
+        }
     });
 
-    const arr = Object.keys(acumulado).map(k => [k, acumulado[k]]);
-    arr.sort((a,b) => b[1] - a[1]);
-
-    if (arr.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:#a0aec0;">Sin diagnósticos en los meses seleccionados.</td></tr>';
+    if (todos.size === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#a0aec0;">Sin diagnósticos en los meses seleccionados.</td></tr>';
         return;
     }
 
-    arr.forEach(([diag, freq]) => {
+    // Armar filas con el total
+    const filas = Array.from(todos).map(diag => {
+        const valores = MESES_ORDEN.map(m => {
+            if (mesesActivos.includes(m) && diagnosticosPorMes[m] && diagnosticosPorMes[m][diag]) {
+                return diagnosticosPorMes[m][diag];
+            }
+            return 0;
+        });
+        const total = valores.reduce((a,b) => a+b, 0);
+        return { diag, valores, total };
+    });
+
+    // Ordenar por total descendente
+    filas.sort((a,b) => b.total - a.total);
+
+    filas.forEach(f => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${diag}</strong></td><td>${freq}</td>`;
+        const celdasMeses = f.valores.map(v => `<td style="text-align:center;">${v > 0 ? v : '—'}</td>`).join('');
+        tr.innerHTML = `
+            <td><strong>${f.diag}</strong></td>
+            ${celdasMeses}
+            <td style="text-align:center;font-weight:700;background:#f7fafc;">${f.total}</td>
+        `;
         tbody.appendChild(tr);
     });
 }
