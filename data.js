@@ -73,7 +73,7 @@ const data = [
   { mes:'ENERO', dia:14, modulo:'Medicina B', total:20, ingreso:2, leve:16, mod:1, sev:0, s_eck:0, at_dia:20, at_noche:0, rendimiento:75, o2:0, cnaf:0, tqt:1, plt:0, drenajes:0, vm:0 },
   { mes:'ENERO', dia:14, modulo:'Medicina C', total:29, ingreso:3, leve:20, mod:1, sev:1, s_eck:1, at_dia:29, at_noche:0, rendimiento:41, o2:4, cnaf:1, tqt:2, plt:0, drenajes:0, vm:0 },
   { mes:'ENERO', dia:14, modulo:'Medicina D', total:24, ingreso:4, leve:16, mod:2, sev:0, s_eck:0, at_dia:24, at_noche:0, rendimiento:63, o2:3, cnaf:0, tqt:1, plt:0, drenajes:0, vm:0 },
-  { mes:'ENERO', dia:14, modulo:'Medicina E', total:22, ingreso:2, leve:15, mod:2, s_eck:0, , at_dia:22, at_noche:0, rendimiento:41, o2:0, cnaf:0, tqt:0, plt:0, drenajes:0, vm:0 },
+  { mes:'ENERO', dia:14, modulo:'Medicina E', total:22, ingreso:2, leve:15, mod:2, s_eck:0, at_dia:22, at_noche:0, rendimiento:41, o2:0, cnaf:0, tqt:0, plt:0, drenajes:0, vm:0 },
   { mes:'ENERO', dia:15, modulo:'UTI 5to', total:24, ingreso:3, leve:18, mod:1, sev:0, s_eck:1, at_dia:24, at_noche:0, rendimiento:92, o2:1, cnaf:2, tqt:0, plt:0, drenajes:1, vm:0 },
   { mes:'ENERO', dia:15, modulo:'Medicina B', total:21, ingreso:6, leve:12, mod:1, sev:0, s_eck:1, at_dia:21, at_noche:0, rendimiento:90, o2:0, cnaf:0, tqt:2, plt:0, drenajes:0, vm:0 },
   { mes:'ENERO', dia:15, modulo:'Medicina C', total:23, ingreso:0, leve:17, mod:1, sev:1, s_eck:1, at_dia:23, at_noche:0, rendimiento:0, o2:3, cnaf:1, tqt:1, plt:0, drenajes:0, vm:0 },
