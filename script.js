@@ -1,4 +1,4 @@
-// script.js — Versión 2026 (ene-sep) con O2/CNAF/TQT/VM + Diagnósticos por mes
+// script.js — Versión 2026 con porcentajes y diagnósticos agrupados
 let allData = [];
 let filteredData = [];
 
@@ -9,6 +9,26 @@ let chartDiagnosticos = null;
 let chartRendimiento = null;
 
 const MESES_ORDEN = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE'];
+
+// Agrupación de diagnósticos (para unificar los que son el mismo espectro clínico)
+const AGRUPACION_DIAG = {
+    'ACV':                  ['ACV'],
+    'IRA / NAC / NEUMONÍA': ['IRA','NAC','NEUMONIA','NEUMONÍA'],
+    'SHOCK':                ['SHOCK'],
+    'ANGINA':               ['ANGINA'],
+    'IAM / SCA':            ['IAM','SCA']
+};
+
+// Devuelve el nombre agrupado a partir del nombre original
+function agruparDiagnostico(nombreOriginal) {
+    const nom = String(nombreOriginal).trim().toUpperCase();
+    for (const grupo in AGRUPACION_DIAG) {
+        if (AGRUPACION_DIAG[grupo].some(k => nom === k || nom.includes(k))) {
+            return grupo;
+        }
+    }
+    return null; // no agrupado
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof data === 'undefined') {
@@ -137,14 +157,19 @@ function updateKPIs() {
     document.getElementById('kpiMejorModulo').textContent =
         mejorModulo + (mejorPromedio > 0 ? ' (' + Math.round(mejorPromedio) + '%)' : '');
 
+    // KPIs ventilatorios mostrados como % de días-cama
+    const totalDiasCama = filteredData.reduce((s,d) => s + (d.total || 0), 0);
     const o2   = filteredData.reduce((s,d) => s + (d.o2   || 0), 0);
     const cnaf = filteredData.reduce((s,d) => s + (d.cnaf || 0), 0);
     const tqt  = filteredData.reduce((s,d) => s + (d.tqt  || 0), 0);
     const vm   = filteredData.reduce((s,d) => s + (d.vm   || 0), 0);
-    document.getElementById('kpiO2').textContent = o2;
-    document.getElementById('kpiCNAF').textContent = cnaf;
-    document.getElementById('kpiTQT').textContent = tqt;
-    document.getElementById('kpiVM').textContent = vm;
+
+    const pct = (v) => totalDiasCama > 0 ? Math.round((v / totalDiasCama) * 100) + '%' : '0%';
+
+    document.getElementById('kpiO2').textContent = pct(o2);
+    document.getElementById('kpiCNAF').textContent = pct(cnaf);
+    document.getElementById('kpiTQT').textContent = pct(tqt);
+    document.getElementById('kpiVM').textContent = pct(vm);
 }
 
 function updateCharts() {
@@ -183,7 +208,7 @@ function updateCharts() {
         }
     });
 
-    // ========== 2. GRAVEDAD (ahora barras horizontales para que se vea lo severo) ==========
+    // ========== 2. GRAVEDAD ==========
     const leve = filteredData.reduce((s,d) => s + d.leve, 0);
     const mod  = filteredData.reduce((s,d) => s + d.mod, 0);
     const sev  = filteredData.reduce((s,d) => s + d.sev, 0);
@@ -206,24 +231,26 @@ function updateCharts() {
             indexAxis: 'y',
             plugins: {
                 legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.label}: ${ctx.parsed.x}`
-                    }
-                }
+                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed.x}` } }
             },
-            scales: {
-                x: { beginAtZero: true, ticks: { precision: 0 } }
-            }
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
         }
     });
 
-    // ========== 3. VENTILATORIO POR MES ==========
+    // ========== 3. VENTILATORIO POR MES (en % de días-cama) ==========
     const meses = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
-    const o2PorMes   = meses.map(m => filteredData.filter(d => d.mes === m).reduce((s,d) => s + (d.o2||0), 0));
-    const cnafPorMes = meses.map(m => filteredData.filter(d => d.mes === m).reduce((s,d) => s + (d.cnaf||0), 0));
-    const tqtPorMes  = meses.map(m => filteredData.filter(d => d.mes === m).reduce((s,d) => s + (d.tqt||0), 0));
-    const vmPorMes   = meses.map(m => filteredData.filter(d => d.mes === m).reduce((s,d) => s + (d.vm||0), 0));
+
+    const pctPorMes = (campo) => meses.map(m => {
+        const dataMes = filteredData.filter(d => d.mes === m);
+        const totalDias = dataMes.reduce((s,d) => s + (d.total || 0), 0);
+        const sumaCampo = dataMes.reduce((s,d) => s + (d[campo] || 0), 0);
+        return totalDias > 0 ? Math.round((sumaCampo / totalDias) * 100) : 0;
+    });
+
+    const o2PorMes   = pctPorMes('o2');
+    const cnafPorMes = pctPorMes('cnaf');
+    const tqtPorMes  = pctPorMes('tqt');
+    const vmPorMes   = pctPorMes('vm');
 
     chartVentilatorio = new Chart(document.getElementById('chartVentilatorio'), {
         type: 'bar',
@@ -239,32 +266,50 @@ function updateCharts() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } },
-            scales: { y: { beginAtZero: true } }
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => v + '%' } }
+            }
         }
     });
 
-    // ========== 4. DIAGNÓSTICOS POR MES (stacked bar) ==========
+    // ========== 4. DIAGNÓSTICOS POR MES (en % del total de diagnósticos del mes) ==========
     const mesesActivos = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
 
-    // Recolectar todos los diagnósticos únicos
-    const todosDiag = new Set();
+    // Recolectar diagnósticos agrupados y calcular totales por mes
+    const gruposActivos = Object.keys(AGRUPACION_DIAG);
+    const valoresPorMes = {}; // { 'ENERO': { 'ACV': 229, 'IRA / NAC / NEUMONÍA': 478, ... }, ... }
+    const totalesPorMes = {}; // { 'ENERO': 877, ... }
+
     mesesActivos.forEach(m => {
-        const d = (typeof diagnosticosPorMes !== 'undefined' && diagnosticosPorMes[m]) ? diagnosticosPorMes[m] : {};
-        Object.keys(d).forEach(k => todosDiag.add(k));
+        valoresPorMes[m] = {};
+        gruposActivos.forEach(g => valoresPorMes[m][g] = 0);
+
+        if (typeof diagnosticosPorMes !== 'undefined' && diagnosticosPorMes[m]) {
+            Object.keys(diagnosticosPorMes[m]).forEach(nombreOriginal => {
+                const grupo = agruparDiagnostico(nombreOriginal);
+                if (grupo) {
+                    valoresPorMes[m][grupo] += diagnosticosPorMes[m][nombreOriginal];
+                }
+            });
+        }
+
+        totalesPorMes[m] = Object.values(valoresPorMes[m]).reduce((a,b) => a+b, 0);
     });
-    const diagLabels = Array.from(todosDiag);
 
-    // Paleta de colores fija por diagnóstico
-    const paleta = ['#667eea','#f6ad55','#68d391','#fc8181','#9f7aea','#ed8936','#4299e1','#e53e3e','#38b2ac','#d53f8c'];
+    const paleta = ['#667eea','#ed8936','#68d391','#fc8181','#9f7aea'];
 
-    // Un dataset por diagnóstico, con los valores por mes
-    const datasetsDiag = diagLabels.map((diag, i) => ({
-        label: diag,
-        data: mesesActivos.map(m => (diagnosticosPorMes[m] && diagnosticosPorMes[m][diag]) || 0),
+    const datasetsDiag = gruposActivos.map((grupo, i) => ({
+        label: grupo,
+        data: mesesActivos.map(m => {
+            const total = totalesPorMes[m];
+            return total > 0 ? Math.round((valoresPorMes[m][grupo] / total) * 100) : 0;
+        }),
         backgroundColor: paleta[i % paleta.length],
-        borderRadius: 4,
-        stack: 'stack1'
+        borderRadius: 4
     }));
 
     chartDiagnosticos = new Chart(document.getElementById('chartDiagnosticos'), {
@@ -276,10 +321,22 @@ function updateCharts() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
+                    }
+                }
+            },
             scales: {
                 x: { stacked: true },
-                y: { stacked: true, beginAtZero: true }
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { callback: v => v + '%' }
+                }
             }
         }
     });
@@ -380,7 +437,6 @@ function updateTable() {
         return a.dia - b.dia;
     });
 
-    // Limitar la tabla a 500 filas por rendimiento (opcional)
     const maxFilas = 500;
     const mostrar = sorted.slice(0, maxFilas);
 
@@ -423,42 +479,53 @@ function updateDiagnosticos() {
     }
 
     const mesesActivos = getSelectedMeses().length > 0 ? getSelectedMeses() : MESES_ORDEN;
+    const gruposActivos = Object.keys(AGRUPACION_DIAG);
 
-    // Recolectar todos los diagnósticos
-    const todos = new Set();
-    mesesActivos.forEach(m => {
-        if (diagnosticosPorMes[m]) {
-            Object.keys(diagnosticosPorMes[m]).forEach(k => todos.add(k));
-        }
+    // Calcular valores agrupados por mes
+    const valores = {}; // { grupo: { mes: cantidad } }
+    const totalesMes = {};
+
+    gruposActivos.forEach(g => valores[g] = {});
+    MESES_ORDEN.forEach(m => {
+        totalesMes[m] = 0;
+        gruposActivos.forEach(g => valores[g][m] = 0);
     });
 
-    if (todos.size === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#a0aec0;">Sin diagnósticos en los meses seleccionados.</td></tr>';
-        return;
-    }
-
-    // Armar filas con el total
-    const filas = Array.from(todos).map(diag => {
-        const valores = MESES_ORDEN.map(m => {
-            if (mesesActivos.includes(m) && diagnosticosPorMes[m] && diagnosticosPorMes[m][diag]) {
-                return diagnosticosPorMes[m][diag];
+    mesesActivos.forEach(m => {
+        if (!diagnosticosPorMes[m]) return;
+        Object.keys(diagnosticosPorMes[m]).forEach(nombreOriginal => {
+            const grupo = agruparDiagnostico(nombreOriginal);
+            if (grupo) {
+                valores[grupo][m] += diagnosticosPorMes[m][nombreOriginal];
+                totalesMes[m] += diagnosticosPorMes[m][nombreOriginal];
             }
-            return 0;
         });
-        const total = valores.reduce((a,b) => a+b, 0);
-        return { diag, valores, total };
+    });
+
+    // Armar las filas (con % del total de cada mes)
+    const filas = gruposActivos.map(grupo => {
+        const celdas = mesesActivos.map(m => {
+            const v = valores[grupo][m];
+            const tot = totalesMes[m];
+            if (tot === 0) return { n: 0, pct: 0 };
+            return { n: v, pct: Math.round((v / tot) * 100) };
+        });
+        const totalNum = celdas.reduce((a,c) => a + c.n, 0);
+        return { grupo, celdas, totalNum };
     });
 
     // Ordenar por total descendente
-    filas.sort((a,b) => b.total - a.total);
+    filas.sort((a,b) => b.totalNum - a.totalNum);
 
     filas.forEach(f => {
         const tr = document.createElement('tr');
-        const celdasMeses = f.valores.map(v => `<td style="text-align:center;">${v > 0 ? v : '—'}</td>`).join('');
+        const celdasHtml = f.celdas.map(c =>
+            `<td style="text-align:center;">${c.n > 0 ? c.n + ' <span style="color:#718096;font-size:0.85em;">(' + c.pct + '%)</span>' : '—'}</td>`
+        ).join('');
         tr.innerHTML = `
-            <td><strong>${f.diag}</strong></td>
-            ${celdasMeses}
-            <td style="text-align:center;font-weight:700;background:#f7fafc;">${f.total}</td>
+            <td><strong>${f.grupo}</strong></td>
+            ${celdasHtml}
+            <td style="text-align:center;font-weight:700;background:#f7fafc;">${f.totalNum}</td>
         `;
         tbody.appendChild(tr);
     });
